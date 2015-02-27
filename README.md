@@ -1,0 +1,2 @@
+# grapherl
+ejabberd monitoring server
