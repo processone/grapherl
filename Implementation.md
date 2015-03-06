@@ -1,37 +1,43 @@
-#Architecture for GraphErl
+#Architecture for Grapherl
+
+##Terminology
+- **Lattice**   : refers to set of points collected for a patricular activity
+eg. cpu usage lattice.
+- **datapoint** : refers to `{key, value}` pair belonging to particular lattice
+where key is generally timestamp.
+- **precision** : referes to the minimum difference between 2 given consecutive
+points. eg. precision of 1 sec.
 
 ##graph_web (Webapp)
 
 ###implementation essentials
-- probably cowboy based webapp. the webapp will communicate to graph_map app on
-some predefined port. This will allow users to swap the webapp with their
-custom version of django/rails app that talks to graph_mp app on the predefined
-port.
-- Graph rquests should be cached so as to  
-- maintaining a web app cache in important to serve graphs quickly.
+- probably cowboy based webapp which will communicate with graph_map on
+a predefined port. This will allow users to swap the webapp with their
+custom version of django/rails app that talks to graph_mp app on that port.
+- on client side d3.js maybe used to generate graphs (need to explore more
+options to compare and contrast).
+- client requesting for a graph must specify the granularity of the lattice it
+wants to receive along with specifying the lattice name.
 
-##graph_map (Graph Matrix Aggregator Processor):
-- modules: grap_ma.app.src, graph_ma_app.erl, grap_ma_sup.erl, graph_ma.erl 
-- graph_map_handler: tcp server that listens for graph requests from the
-webapp.
-- graph_map: based on each incomming request for graph generation, a graph_map
-process is spawned that aggregates data and processes it to generate graphs.
+##graph_map (Grapherl Matrix Aggregater Processor):
+- modules: graph_map.app.src, graph_map_app.erl, graph_map_sup.erl, graph_map_router.erl,
+graph_map.erl 
+- graph_map_router: tcp server that listens for lattice requests from the webapp
+and routes it to corresponding graph_map gen_server.
+- graph_map: is a gen_server process that spawns processes on one or more nodes
+which aggregate the requested lattice. The lattice collected is cached for furhter
+requests. A graph_map process will be spawned on the first incoming request for
+a particular lattice.
 
->NOTE: gen_map will not bring in data untill and unless it is essentially
->required. It will aggregate the location of metric and spwan a worker process
->on all the erlang nodes that contains the data. This worker will process data
->and return results to be interpreted as graphs. (NOT sure about this
-        >implementation)
-
-##graph_db
-- modules: grap_db.app.src, graph_db_app.erl, grap_db_sup.erl,
-    grap_db_router.erl, gen_cache.erl, gen_db.erl, grap_db.erl
-- configuraion
-    - allow user to specify an upper limit on number of data points cached.
-    - time/data point interval after which cache is dumped into database.
-- grap_db_server: gen_udp server that receives the data and casts it to the
+##graph_db (Grapherl DataBase)
+- modules: graph_db.app.src, graph_db_app.erl, graph_db_sup.erl,
+graph_db_router.erl, gen_cache.erl, gen_db.erl, graph_db.erl
+- configuration
+  - allow user to specify an upper limit on number of data points cached.
+  - time/data point interval after which cache is dumped into database.
+- grap_db_router: gen_udp server that receives the data and casts it to the
 corresponding databse api module (which is module using gen_db behaviour).
-- gen_cache: behaviour module of implementing ram caching of incomming metirc
+- gen_cache: behaviour module of implementing ram caching of incoming lattice
 points.
 - graph_ETS: gen_cache module for caching using ETS.
 - gen_db : this is a behaviour module based on gen_server. It specifies
@@ -47,49 +53,52 @@ from database itself, hence providing the latest data
 
 - graph_levelDB: gen_db module that stores data into the levelDB.
 
->NOTE: - there may be multiple instances of gen_db running on one or more
-    nodes each caching and storing metric of one kind of data points. Futher,
-    gen_db servers running on single node storing parts of same metric will
-    cache the metric in the same ETS table i.e. for caching metric of one kind
-    there will be a single ETS table.
+>NOTE:
+> - there may be multiple instances of gen_db running on one or more
+>  nodes each caching and storing lattice of one kind of data points. Futher,
+>  gen_db servers running on single node storing parts of same lattice will
+>  cache the lattice in the same ETS table i.e. for caching lattice of one kind
+>  there will be a single ETS table.
 > - The number of ETS tables per erlang node is limited to ~1500
 
-### clustering graph_db app can be configured to spawn mulitple gen_db (and
-        maybe grap_db_router) processes on different nodes for load
-distribution, scaling and redundency
+- clustering graph_db app can be configured to spawn mulitple gen_db (and maybe grap_db_router) processes on different nodes for load distribution, scaling and redundency
 
 - implementation details:
-- gproc is used for process registration of gen_db servers.
-- each gen_db process will register under two labels:
-- name :`{n, l, {Metric_Name, Client_Name}}`
-- property : `{p, l, {Metric_Name}}`
+        - gproc is used for process registration of gen_db servers.
+        - each gen_db process will register under two labels:
+        - name :`{n, l, {lattice_Name, Client_Name}}`
+        - property : `{p, l, {lattice_Name}}`
+
 - grap_db_router receives data points which it will forward to corresponding
 gen_db servers using gproc:bcast/3 because there maybe multiple gen_db servers
-running to store same or part of metric data for redundancy or load
+running to store same or part of lattice data for redundancy or load
 distribution respectively.
 
->NOTE: gen_db servers storing the same metric on different nodes are assumed to
+>NOTE: gen_db servers storing the same lattice on different nodes are assumed to
 >have the same name
 
-(NOTE : following data point format and its details are just a proposal not the
- final format any suggestions are welcome)
+## ejabberd module for stats aggregation
+Following data point format and its details are just a proposal not the
+final format. Any suggestions are welcomed.
 
-- data point format : "METRIC_PATH TimeStamp Value"
-- METRIC_PATH may be of the format :
-    - Metric_Name.Client_Name.[u|m|b]
-    - alternate : `[{metric, Metric_Name}, {client, Client_Name}, {type,
-        u|m|b}]`
+- data point format : [{lid, LatticeId}, {lp, {TimeStamp, Value}}]
+    - LatticeId (lid) may be of the format : `[{ln, lattice_name}, {cn, client_name}, {t, u|m|b}]`
+    - acronyms :
+        - lp : lattice point
+        - ln : lattice name
+        - cn : client name
+        - t  : type (specifies the forwarding strategy for the lattice point)
 
-    eg. cpu_usage.client1.u
+    eg. `[{lid, [{ln, cpu_usage}, {cn, www.server01.com}, {t,u}]}, {lp, [{TimeStamp, 47}]}]`
 
-    **u** : unicast, will send the data point to the correspoding gen_db
+    **u** : unicast, will send the data point to the corresponding gen_db
     process
 
     **m** : multicast, multiple gen_db servers may be storing parts of the
-    metirc. so using "m" in the PATH will indicate the graph_db_router to
-forward the data to particular gen_db based on certain rules.  (the is left for
-        future extension)
+    metirc. so using ***m*** in the PATH will indicate the graph_db_router to
+    forward the data to particular gen_db based on certain rules.  (the is left for
+    future extension)
 
     **b** : braodcast, forwards the received data point to all the gen_db
-    process that are registered under the property `{p,l{Metric_Name}}`. this
+    process that are registered under the property `{p,l {lattice_name}}`. This
     is to be used when user want to have redundancy.
