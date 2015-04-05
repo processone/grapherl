@@ -61,7 +61,9 @@ from database itself, hence providing the latest data
 >  there will be a single ETS table.
 > - The number of ETS tables per erlang node is limited to ~1500
 
-- clustering graph_db app can be configured to spawn mulitple gen_db (and maybe grap_db_router) processes on different nodes for load distribution, scaling and redundency
+- clustering graph_db app can be configured to spawn mulitple gen_db (and maybe
+grap_db_router) processes on different nodes for load distribution, scaling and
+redundency.
 
 - implementation details:
         - gproc is used for process registration of gen_db servers.

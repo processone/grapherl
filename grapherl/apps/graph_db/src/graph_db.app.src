@@ -1,11 +1,12 @@
 {application, graph_db,
- [{description, "An OTP application"}
+ [{description, "Grap_db: OTP application assisting in data storage of Grapherl."}
  ,{vsn, "0.1.0"}
  ,{registered, []}
  ,{mod, {'graph_db_app', []}}
  ,{applications,
    [kernel
    ,stdlib
+   ,eleveldb
    ]}
  ,{env,[]}
  ,{modules, []}
