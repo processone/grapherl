@@ -8,6 +8,9 @@
    ,stdlib
    ,eleveldb
    ]}
- ,{env,[]}
+ ,{env,
+   [{num_routers, 10}
+   ,{num_servers, 10}
+   ]}
  ,{modules, []}
  ]}.
