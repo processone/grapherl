@@ -2,7 +2,7 @@
 %%
 %%
 
--include_lib("apps/grapherl/include/log.hrl").
+-include_lib("log.hrl").
 
 %% default port receiving metric data
 -define(R_PORT, 11111).
@@ -16,5 +16,14 @@
 -define(ROUTER_SUP, graph_db_router_sup).
 -define(ROUTER_WORKER_SUP, graph_db_router_worker_sup).
 
+-define(DATA_AGGR_SUP, graph_db_data_aggregator_sup).
+-define(DB_SUP, db_sup).
+-define(GEN_DB_WORKER_SUP, gen_db_worker_sup).
+-define(DB_POOL, db_pool).
+
+
 -define(CHILD(Id, Mod, Args, Restart, Type), {Id, {Mod, start_link, Args},
                                               Restart, 5000, Type, [Mod]}).
+
+-record(struct, {data=[]}).
+-record(packet, {mn, cn, mp}).

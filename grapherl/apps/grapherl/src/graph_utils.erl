@@ -1,8 +1,11 @@
 -module(graph_utils).
 
--export([get_router_args/2,
+-export([get_args/2,
          open_port/2,
-         get_socket/2]).
+         get_socket/2,
+         decode_packet/1]).
+
+-include_lib("grapherl.hrl").
 
 %%%===================================================================
 %%% API functions
@@ -10,19 +13,19 @@
 
 %% TL : TupleList
 %% get specified params in ParamList from TL
-get_router_args(TL, ParamList) ->
-    try get_router_args0(TL, ParamList, []) of
+get_args(TL, ParamList) ->
+    try get_args0(TL, ParamList, []) of
         Params -> {ok, Params}
     catch
-        error:Error -> {error, params_missing, Error}
+        error:Error -> {error_params_missing, Error}
     end.
 
 %% helper func for get_router_args/2
-get_router_args0(_TL, [], Acc) ->
+get_args0(_TL, [], Acc) ->
     lists:reverse(Acc);
-get_router_args0(TL, [Key|T], Acc) ->
+get_args0(TL, [Key|T], Acc) ->
     {Key, Val} = lists:keyfind(Key, 1, TL),
-    get_router_args0(TL, T, [Val| Acc]).
+    get_args0(TL, T, [Val| Acc]).
 
 open_port(udp, Port) ->
     gen_udp:open(Port, [{active, false}, binary]);
@@ -40,3 +43,15 @@ get_socket(Type, [Sock | L]) ->
         _ ->
             get_socket(Type, L)
     end.
+
+%% decode joson
+%% Mid : MetricId 
+%% Mn  : Metric Name
+%% Cn  : Client Name eg. www.server01.com
+%% Mp  : Metric Point eg [{timestamp, value}]
+decode_packet(Packet) when is_binary(Packet) ->
+    PacketD = mochijson2:decode(Packet),
+    {ok, [Mid, Mp]}  = get_args(PacketD#struct.data, [<<"mid">>, <<"mp">>]),
+    {ok, [Mn, Cn]}   = get_args(Mid#struct.data, [<<"mn">>, <<"cn">>]),
+    [{Key, Value}]   = Mp#struct.data,
+    #packet{mn=Mn, cn=Cn, mp={Key, Value}}.

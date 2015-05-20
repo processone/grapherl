@@ -2,7 +2,7 @@
 %% @doc graph_db top level supervisor.
 %% @end
 %%%-------------------------------------------------------------------
-
+ 
 -module(graph_db_sup).
 -author('kansi13@gmail.com').
 
@@ -18,13 +18,13 @@
 
 -define(SERVER, ?MODULE).
 
--define(SIMPLE_CHID(WorkerMod), ?CHILD(WorkerMod, WorkerMod, [], transient, worker)).
+-define(SIMPLE_CHILD(WorkerMod), ?CHILD(WorkerMod, WorkerMod, [], transient, worker)).
 
--define(MANAGER_CHID(WorkerMod), ?CHILD(WorkerMod, WorkerMod, [], transient, worker)).
+-define(MANAGER_CHILD(WorkerMod, Args), ?CHILD(WorkerMod, WorkerMod, Args, transient, worker)).
 
 -define(SIMPLE_SUP(SupId, WorkerMod),
         ?CHILD(SupId, simple_sup,
-               [simple_one_for_one, [?SIMPLE_CHID(WorkerMod)]], permanent,
+               [SupId, simple_one_for_one, [?SIMPLE_CHILD(WorkerMod)]], permanent,
                supervisor )).
 
 %%====================================================================
@@ -59,6 +59,7 @@ start_link() ->
 %% default being mod_ETS and mod_levelDB. Both these modules are based on
 %% gen_db behaviour module that defines necessary callbacks to implement
 %% database modules.
+%% 
 %% We use poolboy lib to manage and perform action using graph_db_worker as the
 %% worker process.
 %% NOTE: dumping cache should be a tanscation actions during which no further
@@ -94,33 +95,37 @@ start_link() ->
 
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
-    ?INFO("~p(~p): Starting~n", [?SERVER, []]),
-
+    %% Initializations
+    ok = application:ensure_started(lager),
+    ok = application:ensure_started(poolboy),
     %% router for handling incoming metric data points
-    RouterSupSpec =[?MANAGER_CHID(router_manager),
-                    ?SIMPLE_SUP(?ROUTER_WORKER_SUP, graph_db_router)],
+    RouterSupSpec =[?MANAGER_CHILD(router_manager, []),
+                    ?SIMPLE_SUP(?ROUTER_WORKER_SUP, router_worker)],
 
-    %% TODO initalize poolboy with graph_db_worker
+    %% poolboy initalization for db worker processes
+    {ok, DbMod}       = application:get_env(db_mod),
+    {ok, CacheMod}    = application:get_env(cache_mod),
+    {ok, Size}        = application:get_env(num_db_workers),
 
-    DataServerSpec = ?MANAGER_CHID(graph_data_server),
-    DbManagerSpec  = ?MANAGER_CHID(graph_db_manager),
+    PoolArgs          = [{name, {local, ?DB_POOL}}, {worker_module, db_worker},
+                         {size, Size}, {max_overflow, Size*2}],
+    DbWorkerSpecs     = poolboy:child_spec(?DB_POOL, PoolArgs,
+                                           [{db_mod, DbMod },
+                                            {cache_mod, CacheMod}]),
 
-    DbSupSpec = [DataServerSpec, DbManagerSpec ],
-
+    DataServerSpec    = ?MANAGER_CHILD(db_manager, [[{db_mod, DbMod}, {cache_mod, CacheMod}]]),
+    DbManagerSpec     = ?MANAGER_CHILD(graph_db_server, []),
+    DbSupSpec         = [DbManagerSpec,DataServerSpec],
+    
     %% TODO get database module from application environment.
+    ChildSpecs = [
+                  ?CHILD(?ROUTER_SUP, simple_sup, [?ROUTER_SUP, one_for_all, RouterSupSpec], permanent, supervisor)
+                 ,?CHILD(?DB_SUP, simple_sup, [?DB_SUP, one_for_one, DbSupSpec], permanent, supervisor)
+                 ,DbWorkerSpecs
+                 ],
 
-
-    %% TCP server to listen for metric requests from Graph_map
-    %Req_server_spec = ?CHILD(graph_db_server, graph_db_router, [], transient, worker),
-    {ok, { {one_for_all, 500, 60},
-           [
-            ?CHILD(?ROUTER_SUP, simple_sup, [one_for_all, RouterSupSpec],
-                   permanent, supervisor),
-            ?CHILD(?DB_SUP, simple_sup, [one_for_one, DbSupSpec], permanent,
-                   supervisor)
-           ]
-         }
-    }.
+    ?INFO("~p starting.~n", [?SERVER]),
+    {ok, { {one_for_all, 500, 60}, ChildSpecs}}.
 
 %%====================================================================
 %% Internal functions

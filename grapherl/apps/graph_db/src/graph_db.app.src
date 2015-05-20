@@ -6,11 +6,18 @@
  ,{applications,
    [kernel
    ,stdlib
+   ,syntax_tools
    ,eleveldb
+   ,poolboy
+   ,lager
+   ,mochiweb
    ]}
  ,{env,
    [{num_routers, 10}
+   ,{num_db_workers, 4}
    ,{num_servers, 10}
+   ,{cache_mod, db_ets}
+   ,{db_mod, db_levelDB}
    ]}
  ,{modules, []}
  ]}.

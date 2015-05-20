@@ -4,10 +4,10 @@
  ,{registered, []}
  ,{mod, {'grapherl_app', []}}
  ,{applications,
-   [kernel,
-   stdlib,
-   graph_db,
-   graph_web
+   [kernel
+   ,stdlib
+   ,graph_db
+   ,graph_web
    ]}
  ,{env,[]}
  ,{modules, []}

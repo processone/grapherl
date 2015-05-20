@@ -3,7 +3,7 @@
 -behaviour(supervisor).
 
 %% API functions
--export([start_link/2]).
+-export([start_link/3]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -24,8 +24,9 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Type, ChildSpecs) ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, [Type, ChildSpecs]).
+start_link(Name, Type, ChildSpecs) ->
+    ?INFO("Simple supervisor starting with args: ~p, ~p~n", [Name, Type]),
+    supervisor:start_link({local, Name}, ?MODULE, [Type, ChildSpecs]).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -46,7 +47,7 @@ start_link(Type, ChildSpecs) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Type, ChildSpecs]) ->
-    ?INFO("~p(~p): Starting~n", [?SERVER, ChildSpecs]),
+    ?INFO("~p starting with child specs: ~p~n~n", [?SERVER, ChildSpecs]),
     {ok, {{Type, 5, 10}, ChildSpecs}}.
     %{ok, {{simple_one_for_one, 5, 10}, [CHILD]}}.
 
