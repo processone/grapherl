@@ -53,7 +53,7 @@ init([Args]) ->
     ?INFO("Starting ~p with args: ~p ~n", [?MODULE, Args]),
     case graph_utils:get_args(Args, [socket]) of
         {ok, [Socket]} ->
-            {ok, #state{socket=Socket}, 0};
+            {ok, #{socket => Socket}, 0};
         _ ->
             ?ERROR("ERROR(~p): no UDP socket found.~n", [?MODULE]),
             {stop, no_socket}
@@ -100,16 +100,18 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info(timeout, #state{socket=Socket} = State) ->
+%% receives data in json format: 
+%% '{"mp": {"ts": "value"}, "mid": {"mn": "cpu_usage", "cn": "www.server01.com"}}'
+%%
+handle_info(timeout, #{socket := Socket} = State) ->
     case gen_udp:recv(Socket, 4) of
         {error, _Reason} ->
             ok;
             %?ERROR("Socket Worker(~p): ~p~n", [router, Reason]);
         {ok, {_Address,_Port, Packet}}->
-            ?INFO("Received data ~p~n", [Packet]),
             PacketD = graph_utils:decode_packet(Packet),
             ?INFO("Metric Data ~p~n", [PacketD])
-            %db_worker:store(MetricName, DataPoint)
+            %db_worker:store(PacketD)
     end,
     {noreply, State, ?TIMEOUT};
 

@@ -1,11 +1,14 @@
 {application, graph_web,
- [{description, "An OTP application"}
+ [{description, "An OTP web application for Grapherl."}
  ,{vsn, "0.1.0"}
  ,{registered, []}
  ,{mod, {'graph_web_app', []}}
  ,{applications,
    [kernel
    ,stdlib
+   ,syntax_tools
+   ,mochiweb
+   ,lager
    ]}
  ,{env,[]}
  ,{modules, []}
