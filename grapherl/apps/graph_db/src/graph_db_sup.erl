@@ -103,9 +103,11 @@ init([]) ->
                     ?SIMPLE_SUP(?ROUTER_WORKER_SUP, router_worker)],
 
     %% poolboy initalization for db worker processes
-    {ok, DbMod}       = application:get_env(db_mod),
-    {ok, CacheMod}    = application:get_env(cache_mod),
-    {ok, Size}        = application:get_env(num_db_workers),
+    {ok, DbMod}       = application:get_env(graph_db, db_mod),
+    {ok, CacheMod}    = application:get_env(graph_db, cache_mod),
+    {ok, Size}        = application:get_env(graph_db, num_db_workers),
+
+    ?INFO("Evironment starting ~p ~p ~p.~n", [DbMod, CacheMod, Size]),
 
     PoolArgs          = [{name, {local, ?DB_POOL}}, {worker_module, db_worker},
                          {size, Size}, {max_overflow, Size*2}],
@@ -116,7 +118,7 @@ init([]) ->
     DataServerSpec    = ?MANAGER_CHILD(db_manager, [[{db_mod, DbMod}, {cache_mod, CacheMod}]]),
     DbManagerSpec     = ?MANAGER_CHILD(graph_db_server, []),
     DbSupSpec         = [DbManagerSpec,DataServerSpec],
-    
+
     %% TODO get database module from application environment.
     ChildSpecs = [
                   ?CHILD(?ROUTER_SUP, simple_sup, [?ROUTER_SUP, one_for_all, RouterSupSpec], permanent, supervisor)

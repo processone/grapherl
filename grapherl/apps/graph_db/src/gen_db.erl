@@ -20,4 +20,4 @@
 
 -callback read_all(db_name()) -> {ok, dataL()}.
 
--callback delete_all(db_name()) -> {ok, ret_status()}.
+-callback clear_db(db_name()) -> {ok, ret_status()}.

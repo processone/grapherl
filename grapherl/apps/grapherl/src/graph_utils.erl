@@ -3,7 +3,8 @@
 -export([get_args/2,
          open_port/2,
          get_socket/2,
-         decode_packet/1]).
+         decode_packet/1,
+         mean/1]).
 
 -include_lib("grapherl.hrl").
 
@@ -55,3 +56,14 @@ decode_packet(Packet) when is_binary(Packet) ->
     {ok, [Mn, Cn]}   = get_args(Mid#struct.data, [<<"mn">>, <<"cn">>]),
     [{Key, Value}]   = Mp#struct.data,
     #packet{mn=Mn, cn=Cn, mp={Key, Value}}.
+
+
+mean(List) ->
+    mean(List, 0, 0).
+
+mean([], 0, _) -> 0;
+mean([], Count, Acc) -> Acc/Count;
+mean([E | Rest], Count, Acc) when is_binary(E) ->
+    mean([binary_to_integer(E) | Rest], Count, Acc);
+mean([E | Rest], Count, Acc) when is_integer(E) ->
+    mean(Rest, Count + 1, E + Acc).

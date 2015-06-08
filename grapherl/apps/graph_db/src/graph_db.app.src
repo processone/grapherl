@@ -1,5 +1,5 @@
 {application, graph_db,
- [{description, "Grap_db: OTP application assisting in data storage of Grapherl."}
+ [{description, "Graph_db: OTP application assisting in data storage of Grapherl."}
  ,{vsn, "0.1.0"}
  ,{registered, []}
  ,{mod, {'graph_db_app', []}}
@@ -18,6 +18,8 @@
    ,{num_servers, 10}
    ,{cache_mod, db_ets}
    ,{db_mod, db_levelDB}
+   ,{storage_dir, "/home/kansi/db/"}
+   ,{db_daemon_timeout, 3600}
    ]}
  ,{modules, []}
  ]}.
