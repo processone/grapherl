@@ -6,7 +6,7 @@
 -export([start_link/1
         ,init_cache/2
         ,init_db/2
-        ,get_cache_metric/2
+        ,get_metric_fd/2
         ,get_metric_maps/0
         ]).
 
@@ -29,8 +29,8 @@ init_cache(MetricName, Args) ->
 init_db(MetricName, Args) ->
     gen_server:call(?MODULE, {init_db, MetricName, Args}).
 
-get_cache_metric(Mid, Cn) ->
-    gen_server:call(?MODULE, {get_cache_metric, Mid, Cn}).    
+get_metric_fd(Mid, Cn) ->
+    gen_server:call(?MODULE, {get_metric_fd, Mid, Cn}).    
 
 get_metric_maps() ->
     gen_server:call(?MODULE, {get_metric_maps}).
@@ -64,7 +64,7 @@ start_link(Args) ->
 init([Args]) ->
     process_flag(trap_exit, true),
     
-    {ok, Dir} = application:get_env(storage_dir),
+    {ok, Dir} = application:get_env(graph_db, storage_dir),
     {ok, [DbMod, CacheMod]} = graph_utils:get_args(Args, [db_mod, cache_mod]),
 
     {ok, MetricMaps}   = load_prev_state(),
@@ -121,11 +121,11 @@ handle_call({init_cache, MetricName, Args}, _From, #{cache := CacheMod} = State)
 %% metric maps is of the format: [{{Mid, Cn},  MetricName}, ...]
 %% creates a cache db if it doesn't exist already else return the state of the
 %% cache metric.
-handle_call({get_cache_metric, Mid, Cn}, _From,  State) ->
-    #{metric_maps := List} = State,
-    #{db := DbMod}         = State,
-    #{cache := CacheMod}   = State,
-    #{storage_dir := Dir}  = State,
+handle_call({get_metric_fd, Mid, Cn}, _From,  State) ->
+    #{metric_maps := List
+     ,db          := DbMod
+     ,cache       := CacheMod
+     ,storage_dir := Dir}  = State,
 
     MetricName = <<Mid/binary, "-", Cn/binary>>,
 
@@ -133,13 +133,14 @@ handle_call({get_cache_metric, Mid, Cn}, _From,  State) ->
     %% created so we need to figure out how to bring db_manager up to the mark
     case lists:keyfind({Mid, Cn}, 1, List) of
         false ->
-            ListNew = bootstrap_metric({Mid, Cn}, {MetricName, init_db}, {DbMod, init_db},
-                                       CacheMod, Dir, List),
-            {reply, {ok, MetricName, State}, State#{metric_maps => ListNew}};
+            ListNew = bootstrap_metric({Mid, Cn}, {MetricName, init_db},
+                                       {DbMod, init_db}, CacheMod, Dir, List),
+            {ok, [CacheFd, DbFd]} = graph_utils:get_args(ListNew, [cache_fd, db_fd]),
+            {reply, {ok, CacheFd, DbFd}, State#{metric_maps => ListNew}};
 
         {_, MetricData} ->
-            {ok, [CacheFd]} = graph_utils:get_args(MetricData, [cache_fd]),
-            {reply, {ok, CacheFd}, State}
+            {ok, [CacheFd, DbFd]} = graph_utils:get_args(MetricData, [cache_fd, db_fd]),
+            {reply, {ok, CacheFd, DbFd}, State}
     end;
 
 handle_call({get_metric_maps}, _From, #{metric_maps := MapList} = State) ->
@@ -173,6 +174,10 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_info({cache_to_disk, MetricId}, State) ->
+    db_worker:dump_data(MetricId),
+    {noreply, State};
+
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -216,10 +221,13 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 bootstrap_metric(Key, {MetricName, CFun}, {DbMod, DFun}, CacheMod, Dir, List) ->
-    {ok, CacheFd} = apply(CacheMod, CFun, [ MetricName, [{storage_dir, Dir}] ]),
-    {ok, DbFd}    = apply(DbMod, DFun, [ MetricName, [{storage_dir, Dir}] ]),
+    {ok, CacheFd} = erlang:apply(CacheMod, CFun, [ MetricName, [{storage_dir, Dir}] ]),
+    {ok, DbFd}    = erlang:apply(DbMod, DFun, [ MetricName, [{storage_dir, Dir}] ]),
+    {ok, Timeout} = application:get_env(graph_db, cache_to_disk_timeout),    
+    {ok, Tref}    = timer:send_interval(Timeout, {cache_to_disk, Key}),
+
     lists:keystore(Key, 1, List, {Key, [{name,MetricName},
                                         {db_fd, DbFd},
+                                        {tref, Tref},
                                         {cache_fd, CacheFd}]}).
-
 

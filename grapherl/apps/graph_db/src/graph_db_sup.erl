@@ -46,7 +46,7 @@ start_link() ->
 %% spawns a graph_db_aggregator process and starts listening for any new
 %% requests.
 %% 
-%% graph_db_manager: stores meta data regarding ets cache and correspoding
+%% db_manager: stores meta data regarding ets cache and correspoding
 %% database for different metrics, this data is stored in ETS table so that it
 %% can be read concurrently by graph_db_worker processes so as correctly store
 %% the data point in the table. It also stores user configration data eg.
@@ -54,13 +54,13 @@ start_link() ->
 %% further resposible to implement these user configrations eg. dumping the
 %% database after timeout.
 %%
-%% graph_db_worker: is a gen_server that caches and stores data into database.
+%% db_worker: is a gen_server that caches and stores data into database.
 %% User defines modules which should be used for caching and storing data,
 %% default being mod_ETS and mod_levelDB. Both these modules are based on
 %% gen_db behaviour module that defines necessary callbacks to implement
 %% database modules.
 %% 
-%% We use poolboy lib to manage and perform action using graph_db_worker as the
+%% We use poolboy lib to manage and perform action using db_worker as the
 %% worker process.
 %% NOTE: dumping cache should be a tanscation actions during which no further
 %% data is allowed to enter into cache. In order to achieve this we mark the
@@ -84,13 +84,13 @@ start_link() ->
 %%              +-------------+------------+                                   +-------------+------------+             
 %%              |                          |                                   |                          |             
 %%   +----------+--------+         +-------+-----------+            +----------+-----------+      +-------+-----------+ 
-%%   | graph_data_server |         | graph_db_manager  |            |   router_manager     |      | ?ROUTER_WORKER_SUP| 
+%%   | graph_data_server |         |    db_manager     |            |   router_manager     |      | ?ROUTER_WORKER_SUP| 
 %%   +-------------------+         +-------+-----------+            +----------------------+      +-------+-----------+ 
 %%                                                                                                        |(simple_one_for_one)
 %%                                                                                                  +-----|----------+  
 %%                                                                                                +-------|---------+|  
 %%                                                                                               +--------+--------+|+  
-%%                                                                                               | graph_db_router |+   
+%%                                                                                               | router_worker   |+   
 %%                                                                                               +-----------------+    
 
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
@@ -117,7 +117,10 @@ init([]) ->
 
     DataServerSpec    = ?MANAGER_CHILD(db_manager, [[{db_mod, DbMod}, {cache_mod, CacheMod}]]),
     DbManagerSpec     = ?MANAGER_CHILD(graph_db_server, []),
-    DbSupSpec         = [DbManagerSpec,DataServerSpec],
+    DbDaemonSpec      = ?MANAGER_CHILD(db_daemon, [[{db_mod, DbMod}]]),
+    DbSupSpec         = [DbManagerSpec, DataServerSpec, DbDaemonSpec],
+
+
 
     %% TODO get database module from application environment.
     ChildSpecs = [

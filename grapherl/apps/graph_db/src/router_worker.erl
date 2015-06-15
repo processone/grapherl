@@ -17,8 +17,6 @@
 
 -define(TIMEOUT, 10).
 
--record(state, {socket}).
-
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -110,8 +108,8 @@ handle_info(timeout, #{socket := Socket} = State) ->
             %?ERROR("Socket Worker(~p): ~p~n", [router, Reason]);
         {ok, {_Address,_Port, Packet}}->
             PacketD = graph_utils:decode_packet(Packet),
-            ?INFO("Metric Data ~p~n", [PacketD])
-            %db_worker:store(PacketD)
+            %?INFO("Metric Data ~p~n", [PacketD]),
+            db_worker:store(PacketD)
     end,
     {noreply, State, ?TIMEOUT};
 

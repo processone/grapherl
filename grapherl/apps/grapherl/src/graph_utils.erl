@@ -4,7 +4,9 @@
          open_port/2,
          get_socket/2,
          decode_packet/1,
-         mean/1]).
+         mean/1,
+         binary_to_realNumber/1
+        ]).
 
 -include_lib("grapherl.hrl").
 
@@ -55,15 +57,29 @@ decode_packet(Packet) when is_binary(Packet) ->
     {ok, [Mid, Mp]}  = get_args(PacketD#struct.data, [<<"mid">>, <<"mp">>]),
     {ok, [Mn, Cn]}   = get_args(Mid#struct.data, [<<"mn">>, <<"cn">>]),
     [{Key, Value}]   = Mp#struct.data,
-    #packet{mn=Mn, cn=Cn, mp={Key, Value}}.
+    BinVal           = to_binary(Value),
+    #packet{mn=Mn, cn=Cn, mp={Key, BinVal}}.
+
+to_binary(Val) when is_binary(Val) ->
+    Val;
+to_binary(Val) when is_float(Val) ->
+    float_to_binary(Val);
+to_binary(Val) when is_list(Val) ->
+    list_to_binary(Val);
+to_binary(Val) when is_atom(Val) ->
+    atom_to_binary(Val, utf8).
 
 
 mean(List) ->
     mean(List, 0, 0).
 
 mean([], 0, _) -> 0;
-mean([], Count, Acc) -> Acc/Count;
+mean([], Count, Acc) ->
+    float_to_binary(Acc/Count * 1.0);
 mean([E | Rest], Count, Acc) when is_binary(E) ->
-    mean([binary_to_integer(E) | Rest], Count, Acc);
-mean([E | Rest], Count, Acc) when is_integer(E) ->
+    mean([binary_to_realNumber(E) | Rest], Count, Acc);
+mean([E | Rest], Count, Acc) when is_integer(E) orelse is_float(E) ->
     mean(Rest, Count + 1, E + Acc).
+
+binary_to_realNumber(Num) ->
+    try binary_to_integer(Num) catch _:_ -> binary_to_float(Num) end.

@@ -3,13 +3,12 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/0
-        ,aggregate_data/4]).
+-export([start_link/1
+        ,aggregate_data/4
+        ,should_be_compressed/1
+        ]).
 
-%% test exports
--export([get_granularity/1
-        ,generate_data/2
-        ,merge_points/3]).
+
 
 %% gen_server callbacks
 -export([init/1,
@@ -25,6 +24,7 @@
 %%% API functions
 %%%===================================================================
 
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -32,8 +32,8 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+start_link(Args) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [Args], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -50,10 +50,13 @@ start_link() ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
+init([Args]) ->
     {ok, Timeout} = application:get_env(graph_db, db_daemon_timeout),
     {ok, DbDir}   = application:get_env(graph_db, storage_dir),
-    {ok, #{timeout => Timeout, storage_dir => DbDir}, 0}.
+    {ok, [DbMod]} = graph_utils:get_args(Args, [db_mod]),
+
+    % TODO timeout 0 -> Timeout
+    {ok, #{timeout => Timeout, storage_dir => DbDir, db_mod => DbMod}, 0}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -69,6 +72,9 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({interrupt}, _From, State) ->
+    {reply, ok, State, 0};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -145,80 +151,129 @@ purge_data(DbMod, DbDir, [{_K, MetricData} | Rest]) ->
     {name, Name} = lists:keyfind(name, 1, MetricData),
     {db_fd, DbFd} = lists:keyfind(db_fd, 1, MetricData),
 
-    spawn(?MODULE, aggregate_data, [DbDir, DbMod, Name, DbFd]),
+    spawn(?MODULE, aggregate_data, [DbDir, DbMod, Name, {DbFd, init}]),
     purge_data(DbMod, DbDir, Rest).
 
 
-aggregate_data(DbDir, DbMod, BaseName, State) ->
+aggregate_data(DbDir, DbMod, BaseName, {DbFd, CurrType}) ->
     %% optimize granularity calculation
-    {ok, KeyVal} = DbMod:read_all(State),
-    case get_granularity(KeyVal) of
-        {stop, _Step}  ->
-            ok;
-        {Type,Step}  ->            
-            %MergeFun  = fun(List) -> graph_utils:mean(List) end,
-            MergeFun  = {graph_utils, mean},
-            {NewPoints, DelPoints} = merge_points(KeyVal, {Type, Step}, MergeFun),
+    {ok, KeyVal} = DbMod:read_all(DbFd),
+    io:format("~n[db_daemon]: compressing ~p~n", [CurrType]),
 
-            NextMetric    = db_utils:get_metric_name(db_utils:get_next_step(Type), BaseName),
-            {ok, State1}  = DbMod:open_db(NextMetric, [{storage_dir, DbDir}]),
-            {ok, success} = DbMod:insert_many(State, NewPoints),
-            DbMod:delete_many(State, DelPoints),
-            aggregate_data(DbDir, DbMod, BaseName, State1)
+    % case get_granularity(KeyVal) of
+    case should_be_compressed(KeyVal) of
+        {false, _}  ->
+            ok;
+
+        %% {next, NextType}  ->
+        %%     NextMetric      = db_utils:get_metric_name(NextType, BaseName),
+        %%     {ok, DbFdNext}  = DbMod:open_db(NextMetric, [{storage_dir, DbDir}]),
+        %%     aggregate_data(DbDir, DbMod, BaseName, {DbFdNext, NextType}),
+        %%     DbMod:close_db(DbFdNext);
+
+        {true, {Type, Step}}  ->
+            MergeFun  = {graph_utils, mean},
+            NextType  = db_utils:get_next_type(Type),
+            io:format("~n[db_daemon]: compressing ~p to ~p~n", [Type, NextType]),
+
+            if
+                NextType =:= CurrType -> ok;
+                Type =:= NextType     -> ok;
+                true ->
+                    NextMetric      = db_utils:get_metric_name(NextType, BaseName),
+                    {ok, DbFdNext}  = DbMod:open_db(NextMetric, [{storage_dir, DbDir}]),
+                    ok = merge_points(KeyVal, {Type, Step}, #{db_fd      => DbFd
+                                                             ,db_fd_next => DbFdNext
+                                                             ,db_mod     => DbMod
+                                                             ,merge_fun  => MergeFun}),
+
+                    aggregate_data(DbDir, DbMod, BaseName, {DbFdNext, NextType}),
+                    DbMod:close_db(DbFdNext)
+            end
     end.
 
 
-merge_points([], _Diff, _MergeFun) ->
-    {[], []};
-merge_points([{_K,_V}], _Diff, _MergeFun) ->
-    {[], []};
-merge_points([{K,V} | Rest], Diff, MergeFun) ->
-    IntK      = binary_to_integer(K),
-    merge_points(Rest, {IntK, Diff}, MergeFun, {[IntK], [V]}, [], [{K,V}], []).
+merge_points([], _Diff, _Args) ->
+    ok;
+merge_points([{_K,_V}], _Diff, _Args) ->
+    ok;
+merge_points([{K,V} | Rest], Diff, Args) ->
+    IntK      = erlang:binary_to_integer(K),
+    merge_points(Rest, {IntK, Diff}, Args, {[IntK], [V]}, [{K,V}]).
 
 
-merge_points([], _, _, _, MergeAcc, _DelPoints, DelAcc) ->
-    {lists:reverse(MergeAcc), DelAcc};
+merge_points([], _, _Args, _KVAcc, _DelPoints) ->
+    ok;
+merge_points([{K,V} | Rest], {_Base, {Type, Interval}}, Args,
+             {AccK, AccV}, DelPoints) when Interval =< 0 ->
 
-merge_points([{K,V} | Rest], {_Base, {Type, Interval}}, {Module, Fun},
-             {AccK, AccV}, MergeAcc, DelPoints, DelAcc) when Interval =< 1 ->
+     #{db_fd_next := DbFdNext
+      ,db_fd      := DbFd
+      ,db_mod     := DbMod
+      ,merge_fun  := {Module, Fun}} = Args,
 
-    NewVal    = apply(Module, Fun, [AccV]),
-    AvgKey    = round(graph_utils:mean(AccK)),
+    NewVal    = erlang:apply(Module, Fun, [AccV]),
+    AvgKey    = erlang:integer_to_binary(
+                  erlang:round(
+                    graph_utils:binary_to_realNumber(
+                      graph_utils:mean(AccK)))),
+
+    %io:format("~n~ncompressed ~n~p~nto:~p~n", [DelPoints, {AvgKey, NewVal}]),
+    {ok, success} = DbMod:insert(DbFdNext, {AvgKey, NewVal}),
+    {ok, success} = DbMod:delete_many(DbFd, DelPoints),
+
     Interval0 = db_utils:get_interval(Type),
-    IntK      = binary_to_integer(K),
     Diff      = {Type, Interval0},
-    KeyValAcc = {[IntK],[V]},
-    MergeAcc0 = [{AvgKey, NewVal} | MergeAcc],
+    IntK      = erlang:binary_to_integer(K),
+    KVAcc     = {[IntK],[V]},
 
-    merge_points(Rest, {IntK, Diff}, {Module, Fun}, KeyValAcc, MergeAcc0, [{K,V}],
-                 lists:flatten([DelPoints | DelAcc]));
+    merge_points(Rest, {IntK, Diff}, Args, KVAcc, [{K,V}]);
 
-merge_points([{K,V} | Rest], {Base, {Type, Interval}}, MergeFun, {AccK, AccV},
-             MergeAcc, DelPoints, DelAcc) when Interval > 1 ->
-    IntK       = binary_to_integer(K),
+merge_points([{K,V} | Rest], {Base, {Type, Interval}}, Args,
+             {AccK, AccV}, DelPoints) when Interval > 0 ->
+    IntK       = erlang:binary_to_integer(K),
     Interval0  = IntK - Base,
     Diff       = {Type, Interval - Interval0},
-    DelPointsN = [{K,V} | DelPoints],
-    KeyValAcc  = {[IntK | AccK], [V | AccV]},
-    merge_points(Rest, {IntK, Diff}, MergeFun, KeyValAcc, MergeAcc, DelPointsN,
-                 DelAcc).
+    KVAcc      = {[IntK | AccK], [V | AccV]},
+
+    merge_points(Rest, {IntK, Diff}, Args, KVAcc, [{K,V} | DelPoints]).
+
+
+should_be_compressed(KeyVal) ->
+    case get_granularity(KeyVal) of
+        {next, stop} -> {false, stop};
+        {Type, Step} ->
+            Size    = db_utils:get_aggregation_size(Type),
+            {Hd, _} = erlang:hd(KeyVal),
+            {Tl, _} = erlang:hd(lists:reverse(KeyVal)),
+            Diff    = erlang:abs(graph_utils:binary_to_realNumber(Hd) -
+                                     graph_utils:binary_to_realNumber(Tl)),
+            io:format("Diff: ~p, Size: ~p~n", [Diff, Size]),
+            if
+                Diff >= Size -> {true, {Type, Step}};
+                true         -> {false, stop}
+            end
+    end.
 
 
 %% from list of {Key, Val} pairs get the avg different between the consecutive keys
 get_granularity(Data) ->
-    AvgDiff = db_utils:get_avg_interval(Data),
-    if
-        AvgDiff < 60     -> {min,  db_utils:get_interval(min)}; % sec;
-        AvgDiff < 3600   -> {hour, db_utils:get_interval(hour)}; %min;
-        AvgDiff < 86400  -> {day,  db_utils:get_interval(day)};
-        true             -> {stop, db_utils:get_interval(day)}
+    case db_utils:get_avg_interval(Data) of
+        error   -> {next, stop};
+        AvgDiff ->
+            io:format("~nAvg Diff: ~p~n", [AvgDiff]),
+            if
+                AvgDiff < 60     -> {sec, db_utils:get_interval(sec)}; % sec;
+                AvgDiff < 3600   -> {min, db_utils:get_interval(min)}; %min;
+                AvgDiff < 86400  -> {hour,  db_utils:get_interval(hour)};
+                true             -> {next, stop}
+            end
     end.
 
 
 %%% generate data for testing
-generate_data(End, Jump) ->
-    Time = db_utils:unix_time(),
-    [{integer_to_binary(Time + N), integer_to_binary(crypto:rand_uniform(1000, 9999))} || N <- lists:seq(0, End, Jump)].
+%% generate_data(End, Jump) ->
+%%     Time = db_utils:unix_time(),
+%%     [{integer_to_binary(Time + N), integer_to_binary(crypto:rand_uniform(1000, 9999))} || N <- lists:seq(0, End, Jump)].
 
 

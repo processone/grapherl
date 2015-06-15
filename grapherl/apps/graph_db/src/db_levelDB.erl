@@ -3,7 +3,7 @@
 
 -export([init_db/2
         ,open_db/2
-        ,stop_db/1
+        ,close_db/1
         ,delete_db/1
         ,read_all/1
         ,insert/2
@@ -25,14 +25,14 @@
 init_db(MetricName, Args) when is_binary(MetricName) ->
     {ok, [Dir]} = graph_utils:get_args(Args, [storage_dir]),
     MetricPath  = binary_to_list(<< Dir/binary, MetricName/binary>> ),
-    {ok, Ref} = eleveldb:open(MetricPath, [{create_if_missing, true}]),
+    {ok, Ref}   = eleveldb:open(MetricPath, [{create_if_missing, true}]),
     {ok, #{ref => Ref, dir => MetricPath}}.
 
 %% should try to open the existing db and create it if not already present
 open_db(MetricName, Args) when is_binary(MetricName) ->
     init_db(MetricName, Args).
 
-stop_db(#{ref := Ref}) ->
+close_db(#{ref := Ref}) ->
     ok = eleveldb:close(Ref),
     {ok, success}.
 

@@ -7,8 +7,9 @@
         ,db_hours/1
         ,db_days/1
         ,get_metric_name/2
-        ,get_next_step/1
+        ,get_next_type/1
         ,get_interval/1
+        ,get_aggregation_size/1
         ]).
 
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
@@ -34,6 +35,10 @@ db_days(Name) when is_binary(Name) ->
     <<Name/binary, "_days">>.
 
 %% for a list for {Key, Val} get the average difference between keys
+get_avg_interval([]) ->
+    error;
+get_avg_interval([{_K, _V}]) ->
+    error;
 get_avg_interval(List) ->
     get_avg_interval(List, 0, 0).
 
@@ -59,15 +64,22 @@ get_metric_name(_, Name) ->
     db_days(Name).
 
 
-get_next_step(sec)  -> min;
-get_next_step(min)  -> hour;
-get_next_step(hour) -> day;
-get_next_step(_)    -> day.
-
+get_next_type(init) -> min;
+get_next_type(sec)  -> min;
+get_next_type(min)  -> hour;
+get_next_type(hour) -> day;
+get_next_type(day)  -> stop;
+get_next_type(_)    -> stop.
 
 get_interval(sec)  -> 60;
-get_interval(min)  -> 60;
-get_interval(hour) -> 3600;
+get_interval(min)  -> 3600;
+get_interval(hour) -> 86400;
 get_interval(day)  -> 86400;
 get_interval(_)    -> 86400.
 
+get_aggregation_size(sec)  -> 3600 * 24;
+get_aggregation_size(min)  -> 3600 * 24 * 7;
+get_aggregation_size(hour) -> 3600 * 24 * 365;
+%% keep the diff for day to be large so that no compression occurs
+get_aggregation_size(day)  -> 3600 * 24 * 365 * 100;
+get_aggregation_size(_)  -> 3600 * 24 * 365 * 100.

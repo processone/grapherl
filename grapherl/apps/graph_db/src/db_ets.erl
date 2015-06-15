@@ -24,7 +24,8 @@ init_db(MetricName, Args) when is_binary(MetricName) ->
 
 init_db(MetricName, _Args) when is_atom(MetricName) ->
     ets:new(MetricName, [set, public, named_table,
-                         {write_concurrency, true},
+                         ordered_set,
+                         {write_concurrency, false},
                          {read_concurrency, false}]),
     {ok, MetricName}.
 
