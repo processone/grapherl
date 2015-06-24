@@ -122,8 +122,10 @@ handle_cast({store, #packet{mn=Mn, cn=Cn, mp={Key,Val}}}, #{cache_mod := Cache} 
     {noreply, State};
 
 handle_cast({dump_to_disk, {Mn, Cn}}, #{db_mod := Db, cache_mod := Cache} = State) ->
+
     {ok, CacheFd, DbFd}  = db_manager:get_metric_fd(Mn, Cn),
     {ok, Data}           = Cache:read_all(CacheFd),
+    io:format("~n[+] Writing cache to disk. (Size ~p) ~n", [erlang:length(Data)]),
     {ok, success}        = Db:insert_many(DbFd, Data),
     {ok, success}        = Cache:clear_db(CacheFd),
     {noreply, State};

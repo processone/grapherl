@@ -158,7 +158,8 @@ purge_data(DbMod, DbDir, [{_K, MetricData} | Rest]) ->
 aggregate_data(DbDir, DbMod, BaseName, {DbFd, CurrType}) ->
     %% optimize granularity calculation
     {ok, KeyVal} = DbMod:read_all(DbFd),
-    io:format("~n[db_daemon]: compressing ~p~n", [CurrType]),
+
+    io:format("~n[+] Compressing ~p (length ~p)~n", [BaseName, erlang:length(KeyVal)]),
 
     % case get_granularity(KeyVal) of
     case should_be_compressed(KeyVal) of
@@ -172,9 +173,10 @@ aggregate_data(DbDir, DbMod, BaseName, {DbFd, CurrType}) ->
         %%     DbMod:close_db(DbFdNext);
 
         {true, {Type, Step}}  ->
+            io:format("~n[db_daemon]: compressing ~p~n", [CurrType]),
             MergeFun  = {graph_utils, mean},
             NextType  = db_utils:get_next_type(Type),
-            io:format("~n[db_daemon]: compressing ~p to ~p~n", [Type, NextType]),
+            io:format("[db_daemon]: compressing ~p to ~p~n", [Type, NextType]),
 
             if
                 NextType =:= CurrType -> ok;
@@ -244,14 +246,21 @@ should_be_compressed(KeyVal) ->
         {next, stop} -> {false, stop};
         {Type, Step} ->
             Size    = db_utils:get_aggregation_size(Type),
+            io:format("[+] compressing ~p to ~p~n", [Type, db_utils:get_next_type(Type)]),
             {Hd, _} = erlang:hd(KeyVal),
             {Tl, _} = erlang:hd(lists:reverse(KeyVal)),
             Diff    = erlang:abs(graph_utils:binary_to_realNumber(Hd) -
                                      graph_utils:binary_to_realNumber(Tl)),
-            io:format("Diff: ~p, Size: ~p~n", [Diff, Size]),
+
+            io:format("[+] Hd : ~p, Tl: ~p~n", [Hd, Tl]),
+            io:format("[+] Required time interval: ~p~n[+] Available time interval : ~p~n", [Size, Diff]),
             if
-                Diff >= Size -> {true, {Type, Step}};
-                true         -> {false, stop}
+                Diff >= Size ->
+                    io:format("[+] performing compression."),
+                    {true, {Type, Step}};
+                true         ->
+                    io:format("[-] sufficient points not available for compression.~n"),
+                    {false, stop}
             end
     end.
 
@@ -261,7 +270,7 @@ get_granularity(Data) ->
     case db_utils:get_avg_interval(Data) of
         error   -> {next, stop};
         AvgDiff ->
-            io:format("~nAvg Diff: ~p~n", [AvgDiff]),
+            io:format("[+] Calculating granularity: ~p sec~n", [AvgDiff]),
             if
                 AvgDiff < 60     -> {sec, db_utils:get_interval(sec)}; % sec;
                 AvgDiff < 3600   -> {min, db_utils:get_interval(min)}; %min;

@@ -47,7 +47,7 @@ get_avg_interval([], Count, Acc) ->
 get_avg_interval([{_K1, _}], Count, Acc) ->
     Acc/Count;
 get_avg_interval([{K1, _}, {K2, _} | Rest], Count, Acc) ->
-    AccNew = binary_to_integer(K2) - binary_to_integer(K1) + Acc,
+    AccNew = erlang:abs(binary_to_integer(K2) - binary_to_integer(K1)) + Acc,
     get_avg_interval(Rest, Count + 1, AccNew).
 
 

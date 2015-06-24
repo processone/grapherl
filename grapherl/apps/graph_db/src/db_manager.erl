@@ -77,8 +77,8 @@ init([Args]) ->
 init_db_handlers([], _, _, _, Acc) ->
     {ok, Acc};
 init_db_handlers([{Key, MetricName} | Rest], DbMod, CacheMod, Dir, Acc) ->
-    AccNew = bootstrap_metric(Key, {MetricName, init_db}, {DbMod, open_db},
-                              CacheMod, Dir, Acc),
+    AccNew = bootstrap_metric(Key, MetricName, {DbMod, open_db},
+                              {CacheMod, init_db}, Dir, Acc),
     init_db_handlers(Rest, DbMod, CacheMod, Dir, AccNew).
 
 
@@ -133,9 +133,10 @@ handle_call({get_metric_fd, Mid, Cn}, _From,  State) ->
     %% created so we need to figure out how to bring db_manager up to the mark
     case lists:keyfind({Mid, Cn}, 1, List) of
         false ->
-            ListNew = bootstrap_metric({Mid, Cn}, {MetricName, init_db},
-                                       {DbMod, init_db}, CacheMod, Dir, List),
-            {ok, [CacheFd, DbFd]} = graph_utils:get_args(ListNew, [cache_fd, db_fd]),
+            ListNew = bootstrap_metric({Mid, Cn}, MetricName, {DbMod, init_db},
+                                       {CacheMod, init_db}, Dir, List),
+            {ok, [Metric]}        = graph_utils:get_args(ListNew, [{Mid, Cn}]),
+            {ok, [CacheFd, DbFd]} = graph_utils:get_args(Metric, [cache_fd, db_fd]),
             {reply, {ok, CacheFd, DbFd}, State#{metric_maps => ListNew}};
 
         {_, MetricData} ->
@@ -220,7 +221,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-bootstrap_metric(Key, {MetricName, CFun}, {DbMod, DFun}, CacheMod, Dir, List) ->
+bootstrap_metric(Key, MetricName, {DbMod, DFun}, {CacheMod, CFun}, Dir, List) ->
     {ok, CacheFd} = erlang:apply(CacheMod, CFun, [ MetricName, [{storage_dir, Dir}] ]),
     {ok, DbFd}    = erlang:apply(DbMod, DFun, [ MetricName, [{storage_dir, Dir}] ]),
     {ok, Timeout} = application:get_env(graph_db, cache_to_disk_timeout),    
