@@ -96,11 +96,12 @@ init([Args]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({read_metric, MetricName}, _From, #{db_mod := Db, cache_mod := Cache} = State) ->
+handle_call({read_metric, {Mn, Cn}}, _From, #{db_mod := Db, cache_mod := Cache} = State) ->
     %% TODO read in chunks and keep sending the data.
-    {CacheData, State0} = Cache:read_all(MetricName, State),
-    {DbData, State1}    = Db:read_all(MetricName, State0),
-    {reply, lists:flatten([CacheData | DbData]), State1};
+    {ok, CacheFd, DbFd}  = db_manager:get_metric_fd(Mn, Cn),
+    {ok, CacheData} = Cache:read_all(CacheFd),
+    {ok, DbData}    = Db:read_all(DbFd),
+    {reply, lists:flatten([CacheData | DbData]), State};
 
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -122,7 +123,6 @@ handle_cast({store, #packet{mn=Mn, cn=Cn, mp={Key,Val}}}, #{cache_mod := Cache} 
     {noreply, State};
 
 handle_cast({dump_to_disk, {Mn, Cn}}, #{db_mod := Db, cache_mod := Cache} = State) ->
-
     {ok, CacheFd, DbFd}  = db_manager:get_metric_fd(Mn, Cn),
     {ok, Data}           = Cache:read_all(CacheFd),
     io:format("~n[+] Writing cache to disk. (Size ~p) ~n", [erlang:length(Data)]),
