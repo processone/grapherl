@@ -7,6 +7,7 @@
 -export([start_link/1,
          store/1,
          retrive/1,
+         retrive/2,
          dump_data/1]).
 
 %% gen_server callbacks
@@ -38,6 +39,12 @@ retrive(MetricName) ->
                         fun(Worker) ->
                                 gen_server:call(Worker, {read_metric, MetricName})
                         end).
+
+retrive(MetricName, Granularity) ->
+    poolboy:transaction(?DB_POOL,
+                        fun(Worker) ->
+                                gen_server:call(Worker, {read_metric, MetricName, Granularity})
+                        end).    
 
 %% dump cache to databse after TIMEOUT
 dump_data(MetricId) ->
@@ -101,6 +108,13 @@ handle_call({read_metric, {Mn, Cn}}, _From, #{db_mod := Db, cache_mod := Cache} 
     {ok, CacheFd, DbFd}  = db_manager:get_metric_fd(Mn, Cn),
     {ok, CacheData} = Cache:read_all(CacheFd),
     {ok, DbData}    = Db:read_all(DbFd),
+    {reply, lists:flatten([CacheData | DbData]), State};
+
+handle_call({read_metric, {Mn, Cn}, Granularity}, _From, #{db_mod := Db, cache_mod := Cache} = State) ->
+    %% TODO read in chunks and keep sending the data.
+    {ok, CacheFd, DbFd}  = db_manager:get_metric_fd(Mn, Cn, Granularity),
+    {ok, CacheData}      = Cache:read_all(CacheFd),
+    {ok, DbData}         = Db:read_all(DbFd),
     {reply, lists:flatten([CacheData | DbData]), State};
 
 handle_call(_Request, _From, State) ->

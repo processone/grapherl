@@ -5,7 +5,7 @@
 %% API functions
 -export([start_link/1
         ,aggregate_data/4
-        ,should_be_compressed/1
+        ,should_be_purged/2
         ]).
 
 
@@ -17,6 +17,8 @@
          handle_info/2,
          terminate/2,
          code_change/3]).
+
+-include_lib("../include/graph_db_records.hrl").
 
 -define(TIMEOUT, 5000).
 
@@ -104,6 +106,7 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info(timeout,  State) ->
     #{storage_dir := DbDir, timeout := Timeout, db_mod := DbMod} = State,
+
     case db_manager:get_metric_maps() of
         {ok, MapList} ->
             purge_data(DbMod, DbDir, MapList),
@@ -144,54 +147,72 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-purge_data(_DbMod, _DbDir, []) ->
-    ok;
-purge_data(DbMod, DbDir, [{_K, MetricData} | Rest]) ->
+purge_data(DbMod, DbDir, MetricData) ->
+    purge_data(DbMod, DbDir, MetricData, 0).
+
+purge_data(_DbMod, _DbDir, [], Threads) ->
+    get_status(Threads);
+purge_data(DbMod, DbDir, [{K, MetricData} | Rest], Threads) ->
     %% Name is the live name for the Metric
-    {name, Name} = lists:keyfind(name, 1, MetricData),
-    {db_fd, DbFd} = lists:keyfind(db_fd, 1, MetricData),
+    {{db_fd, live}, DbFd} = lists:keyfind({db_fd, live}, 1, MetricData),
+    io:format("~n[db_daemon] staring purging~n"),
 
-    spawn(?MODULE, aggregate_data, [DbDir, DbMod, Name, {DbFd, init}]),
-    purge_data(DbMod, DbDir, Rest).
+    if
+        Threads =:= 4 andalso Rest =/= [] ->
+            get_status(1),
+            purge_data(DbMod, DbDir, [{K, MetricData} | Rest], Threads -1);            
+
+        true ->
+            Pid = spawn(?MODULE, aggregate_data, [DbDir, DbMod, {K, MetricData}, {DbFd, live}]),
+            erlang:monitor(process, Pid),
+            purge_data(DbMod, DbDir, Rest, Threads + 1)
+    end.
 
 
-aggregate_data(DbDir, DbMod, BaseName, {DbFd, CurrType}) ->
+get_status(0) ->
+    ok;
+get_status(N) ->
+    receive
+        {'DOWN', _, _, _, _} -> 
+            io:format("[+] thread work complete, starting new thread~n"),
+            get_status(N-1)
+    after
+        10000 -> ok
+    end.
+
+
+aggregate_data(DbDir, DbMod, {{Mid,Cn}, MetricData}, {DbFd, CurrType}) ->
     %% optimize granularity calculation
-    {ok, KeyVal} = DbMod:read_all(DbFd),
+    {name, BaseName} = lists:keyfind(name, 1, MetricData),
 
+    {ok, KeyVal}     = DbMod:read_all(DbFd),
     io:format("~n[+] Compressing ~p (length ~p)~n", [BaseName, erlang:length(KeyVal)]),
 
-    % case get_granularity(KeyVal) of
-    case should_be_compressed(KeyVal) of
-        {false, _}  ->
+    %% TODO optimize this
+    case should_be_purged(KeyVal, CurrType) of
+        {false, stop} ->
             ok;
-
-        %% {next, NextType}  ->
-        %%     NextMetric      = db_utils:get_metric_name(NextType, BaseName),
-        %%     {ok, DbFdNext}  = DbMod:open_db(NextMetric, [{storage_dir, DbDir}]),
-        %%     aggregate_data(DbDir, DbMod, BaseName, {DbFdNext, NextType}),
-        %%     DbMod:close_db(DbFdNext);
-
-        {true, {Type, Step}}  ->
-            io:format("~n[db_daemon]: compressing ~p~n", [CurrType]),
+        {Purge, {Type, Step}} ->
             MergeFun  = {graph_utils, mean},
             NextType  = db_utils:get_next_type(Type),
-            io:format("[db_daemon]: compressing ~p to ~p~n", [Type, NextType]),
+            DbFdNext  = get_next_db_fd({Mid,Cn}, NextType, MetricData),
+            ok        = merge_points(KeyVal, {Type, Step}, #{db_fd      => DbFd
+                                                            ,db_fd_next => DbFdNext
+                                                            ,db_mod     => DbMod
+                                                            ,merge_fun  => MergeFun
+                                                            ,purge      => Purge}),
+            aggregate_data(DbDir, DbMod, {{Mid,Cn}, MetricData},
+                           {DbFdNext, NextType})
+    end.
 
-            if
-                NextType =:= CurrType -> ok;
-                Type =:= NextType     -> ok;
-                true ->
-                    NextMetric      = db_utils:get_metric_name(NextType, BaseName),
-                    {ok, DbFdNext}  = DbMod:open_db(NextMetric, [{storage_dir, DbDir}]),
-                    ok = merge_points(KeyVal, {Type, Step}, #{db_fd      => DbFd
-                                                             ,db_fd_next => DbFdNext
-                                                             ,db_mod     => DbMod
-                                                             ,merge_fun  => MergeFun}),
 
-                    aggregate_data(DbDir, DbMod, BaseName, {DbFdNext, NextType}),
-                    DbMod:close_db(DbFdNext)
-            end
+get_next_db_fd({Mid,Cn}, NextType, MetricData) ->
+    case lists:keyfind({db_fd, NextType}, 1, MetricData) of
+        {{db_fd, NextType}, NextFd} ->
+            NextFd;
+        _ ->
+            {ok, _, NextFd}  = db_manager:get_metric_fd(Mid, Cn, NextType),
+            NextFd
     end.
 
 
@@ -212,7 +233,8 @@ merge_points([{K,V} | Rest], {_Base, {Type, Interval}}, Args,
      #{db_fd_next := DbFdNext
       ,db_fd      := DbFd
       ,db_mod     := DbMod
-      ,merge_fun  := {Module, Fun}} = Args,
+      ,merge_fun  := {Module, Fun}
+      ,purge      := Purge} = Args,
 
     NewVal    = erlang:apply(Module, Fun, [AccV]),
     AvgKey    = erlang:integer_to_binary(
@@ -222,7 +244,7 @@ merge_points([{K,V} | Rest], {_Base, {Type, Interval}}, Args,
 
     %io:format("~n~ncompressed ~n~p~nto:~p~n", [DelPoints, {AvgKey, NewVal}]),
     {ok, success} = DbMod:insert(DbFdNext, {AvgKey, NewVal}),
-    {ok, success} = DbMod:delete_many(DbFd, DelPoints),
+    if Purge =:= true -> {ok, success} = DbMod:delete_many(DbFd, DelPoints); true -> ok end,
 
     Interval0 = db_utils:get_interval(Type),
     Diff      = {Type, Interval0},
@@ -241,43 +263,41 @@ merge_points([{K,V} | Rest], {Base, {Type, Interval}}, Args,
     merge_points(Rest, {IntK, Diff}, Args, KVAcc, [{K,V} | DelPoints]).
 
 
-should_be_compressed(KeyVal) ->
-    case get_granularity(KeyVal) of
+should_be_purged(KeyVal, Type) ->
+    case get_granularity(KeyVal, Type) of
         {next, stop} -> {false, stop};
-        {Type, Step} ->
-            Size    = db_utils:get_aggregation_size(Type),
-            io:format("[+] compressing ~p to ~p~n", [Type, db_utils:get_next_type(Type)]),
+        {Granularity, Step} ->
+            Size    = db_utils:get_aggregation_size(Granularity),
+            io:format("[+] compressing ~p to ~p~n", [Granularity, db_utils:get_next_type(Granularity)]),
             {Hd, _} = erlang:hd(KeyVal),
             {Tl, _} = erlang:hd(lists:reverse(KeyVal)),
             Diff    = erlang:abs(graph_utils:binary_to_realNumber(Hd) -
                                      graph_utils:binary_to_realNumber(Tl)),
 
-            io:format("[+] Hd : ~p, Tl: ~p~n", [Hd, Tl]),
+            %io:format("[+] Hd : ~p, Tl: ~p~n", [Hd, Tl]),
             io:format("[+] Required time interval: ~p~n[+] Available time interval : ~p~n", [Size, Diff]),
-            if
-                Diff >= Size ->
-                    io:format("[+] performing compression."),
-                    {true, {Type, Step}};
-                true         ->
-                    io:format("[-] sufficient points not available for compression.~n"),
-                    {false, stop}
-            end
+            Ret = if Diff >= Size -> true; true -> false end,
+            {Ret, {Granularity, Step}}
     end.
 
 
 %% from list of {Key, Val} pairs get the avg different between the consecutive keys
-get_granularity(Data) ->
+get_granularity(Data, live) ->
     case db_utils:get_avg_interval(Data) of
         error   -> {next, stop};
         AvgDiff ->
-            io:format("[+] Calculating granularity: ~p sec~n", [AvgDiff]),
+            %io:format("[+] Calculating granularity: ~p sec~n", [AvgDiff]),
             if
-                AvgDiff < 60     -> {sec, db_utils:get_interval(sec)}; % sec;
-                AvgDiff < 3600   -> {min, db_utils:get_interval(min)}; %min;
-                AvgDiff < 86400  -> {hour,  db_utils:get_interval(hour)};
+                AvgDiff < 60     -> {?SEC, db_utils:get_interval(?SEC)}; % sec;
+                AvgDiff < 3600   -> {?MIN, db_utils:get_interval(?MIN)}; %min;
+                AvgDiff < 86400  -> {?HOUR,  db_utils:get_interval(?HOUR)};
                 true             -> {next, stop}
             end
-    end.
+    end;
+get_granularity(_Data, ?DAY) ->
+    {next, stop};
+get_granularity(_Data, Type) ->
+    {Type, db_utils:get_interval(Type)}.
 
 
 %%% generate data for testing

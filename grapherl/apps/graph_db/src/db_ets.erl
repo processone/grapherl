@@ -3,6 +3,7 @@
 
 -export([init_db/2
         ,open_db/2
+        ,close_db/1
         ,delete_db/1
         ,read_all/1
         ,insert/2
@@ -38,6 +39,8 @@ open_db(MetricName, Args) when is_atom(MetricName) ->
         _         -> {ok, MetricName}
     end.
 
+close_db(MetricName) when is_atom(MetricName) ->
+    delete_db(MetricName).
 
 %% remove Database
 delete_db(MetricName) when is_atom(MetricName) ->

@@ -5,3 +5,9 @@
 %% db_configs: list of lists, where each element lists stores configs related
 %% to database storing metric.
 -record(state, {db_mod, cache_mod, db_configs}).
+
+-define(SEC, sec).
+-define(MIN, min).
+-define(HOUR, hour).
+-define(DAY, day).
+
