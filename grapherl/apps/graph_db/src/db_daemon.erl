@@ -106,7 +106,7 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info(timeout,  State) ->
     #{storage_dir := DbDir, timeout := Timeout, db_mod := DbMod} = State,
-
+    io:format("~n[db_daemon] staring purging~n"),
     case db_manager:get_metric_maps() of
         {ok, MapList} ->
             purge_data(DbMod, DbDir, MapList),
@@ -155,14 +155,13 @@ purge_data(_DbMod, _DbDir, [], Threads) ->
 purge_data(DbMod, DbDir, [{K, MetricData} | Rest], Threads) ->
     %% Name is the live name for the Metric
     {{db_fd, live}, DbFd} = lists:keyfind({db_fd, live}, 1, MetricData),
-    io:format("~n[db_daemon] staring purging~n"),
-
     if
         Threads =:= 4 andalso Rest =/= [] ->
             get_status(1),
             purge_data(DbMod, DbDir, [{K, MetricData} | Rest], Threads -1);            
 
         true ->
+            %io:format("[+] starting thread: ~p~n", [Threads]),
             Pid = spawn(?MODULE, aggregate_data, [DbDir, DbMod, {K, MetricData}, {DbFd, live}]),
             erlang:monitor(process, Pid),
             purge_data(DbMod, DbDir, Rest, Threads + 1)
@@ -174,7 +173,6 @@ get_status(0) ->
 get_status(N) ->
     receive
         {'DOWN', _, _, _, _} -> 
-            io:format("[+] thread work complete, starting new thread~n"),
             get_status(N-1)
     after
         10000 -> ok
@@ -296,9 +294,10 @@ get_granularity(Data, live) ->
     end;
 get_granularity(_Data, ?DAY) ->
     {next, stop};
-get_granularity(_Data, Type) ->
-    {Type, db_utils:get_interval(Type)}.
-
+get_granularity(Data, Type) when Data =/= []->
+    {Type, db_utils:get_interval(Type)};
+get_granularity(_, _) ->
+    {next, stop}.
 
 %%% generate data for testing
 %% generate_data(End, Jump) ->
