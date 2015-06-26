@@ -23,7 +23,7 @@
 
 
 -define(CHILD(Id, Mod, Args, Restart, Type), {Id, {Mod, start_link, Args},
-                                              Restart, 5000, Type, [Mod]}).
+                                              Restart, 60000, Type, [Mod]}).
 
 -record(struct, {data=[]}).
 -record(packet, {mn, cn, mp}).

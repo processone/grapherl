@@ -243,12 +243,18 @@ terminate(_Reason, #{db := DbMod, cache := CacheMod}) ->
       fun({Key, Value}, Acc) ->
               {ok, [Name
                    ,CacheFd
+                   ,DbFd
                    ,Tref]} = graph_utils:get_args(Value, [name
                                                          ,cache_fd
+                                                         ,{db_fd, live}
                                                          ,tref]),
 
-              timer:cancel(Tref),
+              %% store cache before crashing or terminating
+              {ok, Data}    = CacheMod:read_all(CacheFd),
+              {ok, success} = DbMod:insert_many(DbFd, Data),
               CacheMod:close_db(CacheFd),
+
+              timer:cancel(Tref),
               [DbMod:close_db(Fd) || {{db_fd, _Type}, Fd} <- Value],
               ets:insert(?MODULE, {Key, Name}),
               Acc
