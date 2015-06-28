@@ -20,6 +20,7 @@
 %% not update at all.
 
 %% init db: return {ok, Params}
+%% any db mod that is going to do ram storage should return {ok, self(), Fd}
 init_db(MetricName, Args) when is_binary(MetricName) ->
     init_db(binary_to_atom(MetricName, utf8), Args);
 
@@ -28,7 +29,7 @@ init_db(MetricName, _Args) when is_atom(MetricName) ->
                          ordered_set,
                          {write_concurrency, false},
                          {read_concurrency, false}]),
-    {ok, MetricName}.
+    {ok, self(), MetricName}.
 
 
 open_db(MetricName, Args) when is_binary(MetricName) ->
@@ -36,7 +37,7 @@ open_db(MetricName, Args) when is_binary(MetricName) ->
 open_db(MetricName, Args) when is_atom(MetricName) ->
     case ets:info(MetricName) of
         undefined -> init_db(MetricName, Args);
-        _         -> {ok, MetricName}
+        _         -> {ok, self(), MetricName}
     end.
 
 close_db(MetricName) when is_atom(MetricName) ->

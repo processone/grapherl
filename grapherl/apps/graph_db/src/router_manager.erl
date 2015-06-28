@@ -59,7 +59,7 @@ init([]) ->
     process_flag(trap_exit, true),
 
     ok = proc_lib:init_ack({ok, self()}),
-    ?INFO("~p(~p): Starting~n", [?MODULE, "default"]),
+    ?INFO("~p(~p): Starting~n", [?MODULE, self()]),
 
     %% start default UDP ports for handling requests and receiving data.
     {ok, State} = init_router_socket(?R_PORT, #state{}),

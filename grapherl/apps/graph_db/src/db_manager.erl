@@ -24,16 +24,17 @@
 %%%===================================================================
 get_metric_fd(Mid, Cn) ->
     get_metric_fd(Mid, Cn, live).
-    %gen_server:call(?MODULE, {get_metric_fd, Mid, Cn, live}).
 
 
 %% metric storing seconds is assumed to be live
 get_metric_fd(Mid, Cn, sec) ->
     get_metric_fd(Mid, Cn, live);
+
 get_metric_fd(Mid, Cn, Granularity) ->
     {ok, MapList} = get_metric_maps({Mid, Cn}, Granularity),
     case graph_utils:get_args(MapList, [cache_fd, {db_fd, Granularity}]) of
         {error_params_missing, _} ->
+            %% io:format("~n metric don't exits calling gen_server ~p ~p~n", [Granularity, MapList]),
             gen_server:call(?MODULE, {get_metric_fd, Mid, Cn, Granularity});
         {ok, [CacheFd, DbFd]} ->
             {ok, CacheFd, DbFd}
@@ -49,9 +50,11 @@ get_metric_maps() ->
 get_metric_maps({Mid, Cn}, Granularity) ->
     case ets:lookup(?MODULE, {Mid,Cn}) of
         [] when Granularity =:= live ->
+            %% io:format("~n from here metric don't exits calling gen_server ~p~n", [Granularity]),
             gen_server:call(?MODULE, {get_metric_fd, Mid, Cn, live}),
             [{_Key, Value}] = ets:lookup(?MODULE, {Mid,Cn}),
             {ok, Value};
+
         %% if the Granularity req was not for live it means that metric should
         %% have been create by manager earlier but since it is not in its state
         %% so it will throw error
@@ -93,31 +96,42 @@ init([Args]) ->
     
     {ok, Dir} = application:get_env(graph_db, storage_dir),
     {ok, [DbMod, CacheMod]} = graph_utils:get_args(Args, [db_mod, cache_mod]),
+    
+    %% db_manager stores metric meta data in ets table and saves it to disk
+    %% for persistance and to handle crash.
+    reload_state(DbMod, CacheMod, Dir),
 
-    {ok, success} = load_prev_state(),
-    init_db_handlers(DbMod, CacheMod, Dir),
     {ok, #{db          => DbMod
           ,cache       => CacheMod
           ,storage_dir => Dir}}.
 
+reload_state(DbMod, CacheMod, Dir) ->
+    case ets:info(?MODULE) of
+        undefined ->
+            {ok, success} = load_prev_state(),
+            init_db_handlers(DbMod, CacheMod, Dir);
+        _  ->
+            {ok, success}
+    end.
 
 init_db_handlers(DbMod, CacheMod, Dir) ->
     ets:foldl(
       fun({Key, MetricName}, Acc) ->
               bootstrap_metric(Key, MetricName, {DbMod, open_db, live},
-                               {CacheMod, init_db}, Dir),
+                               {CacheMod, open_db}, Dir),
               Acc
       end, 0, ?MODULE).
-
 
 load_prev_state() ->
     case ets:file2tab("db_manager.dat") of 
         {error,{read_error,{file_error, _, enoent}}} ->
+            Pid = graph_db_sup:ets_sup_pid(),
             ets:new(?MODULE, [set, public, named_table,
+                              {heir, Pid, none},
                               {write_concurrency, false},
                               {read_concurrency, true}]),
             {ok, success};
-        
+
         {ok, _Tab} ->
             {ok, success}
     end.
@@ -179,6 +193,10 @@ handle_call({get_metric_fd, Mid, Cn, Granularity}, _From,  State) ->
             {ok, DbFd}  = create_db(DbMod, init_db, {MetricName, Dir}),
             MetricDataN = lists:keystore({db_fd, Granularity}, 1, MetricData,
                                          {{db_fd,Granularity}, DbFd}),
+            case is_binary(MetricDataN) of
+                true -> erlang:error("~n~n~n~n~n~n~n~[+] duak just happen~n~n~n~n~n~n~n~n~n");
+                _ -> ok
+            end,
 
             ets:insert(?MODULE, {{Mid,Cn}, MetricDataN}),
             {reply, {ok, CacheFd, DbFd}, State};
@@ -237,30 +255,38 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, #{db := DbMod, cache := CacheMod}) ->
+terminate(Reason, #{db := DbMod, cache := CacheMod}) ->
     %% write state to disk while crashing or terminating
-    ets:foldl(
-      fun({Key, Value}, Acc) ->
-              {ok, [Name
-                   ,CacheFd
-                   ,DbFd
-                   ,Tref]} = graph_utils:get_args(Value, [name
-                                                         ,cache_fd
-                                                         ,{db_fd, live}
-                                                         ,tref]),
+    io:format("~n[+] Saving db_manager state ... reason ~p~n", [Reason]),
+    case Reason of
+        shutdown ->
+            ets:foldl(
+              fun({Key, Value}, Acc) ->
+                      {ok, [Name
+                           ,CacheFd
+                           ,DbFd
+                           ,Tref]} = graph_utils:get_args(Value, [name
+                                                                 ,cache_fd
+                                                                 ,{db_fd, live}
+                                                                 ,tref]),
+                      
+                      %% store cache before crashing or terminating
+                      {ok, Data}    = CacheMod:read_all(CacheFd),
+                      {ok, success} = DbMod:insert_many(DbFd, Data),
+                      CacheMod:close_db(CacheFd),
+                      if Reason =:= shutdown -> graph_db_sup:ets_sup_stop_child(Name); true -> ok end,
 
-              %% store cache before crashing or terminating
-              {ok, Data}    = CacheMod:read_all(CacheFd),
-              {ok, success} = DbMod:insert_many(DbFd, Data),
-              CacheMod:close_db(CacheFd),
+                      timer:cancel(Tref),
+                      [DbMod:close_db(Fd) || {{db_fd, _Type}, Fd} <- Value],
+                      ets:insert(?MODULE, {Key, Name}),
+                      Acc
 
-              timer:cancel(Tref),
-              [DbMod:close_db(Fd) || {{db_fd, _Type}, Fd} <- Value],
-              ets:insert(?MODULE, {Key, Name}),
-              Acc
-
-      end, 0, ?MODULE),
+              end, 0, ?MODULE);
+        _ ->
+            ok
+    end,
     ets:tab2file(?MODULE, "db_manager.dat"),
+    if Reason =:= shutdown -> graph_db_sup:stop_ets_sup(); true -> ok end,    
     ok.
 
 %%--------------------------------------------------------------------
@@ -279,13 +305,17 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 bootstrap_metric(Key, MetricName, {DbMod, DFun, Type}, {CacheMod, CFun}, Dir) ->
-    {ok, CacheFd} = create_db(CacheMod, CFun, {MetricName, Dir}),
+    %% {ok, CacheFd} = create_db(CacheMod, CFun, {MetricName, Dir}),
+    %% create ets table as direct children of graph_db_sup
+    {ok, CacheFd} = graph_db_sup:init_metric_cache(erlang:binary_to_atom(MetricName,utf8),
+                                                   {CacheMod, CFun, Dir}),
+
     {ok, DbFd}    = create_db(DbMod, DFun, {MetricName, Dir}),
     {ok, Timeout} = application:get_env(graph_db, cache_to_disk_timeout),    
     {ok, Tref}    = timer:send_interval(Timeout, {cache_to_disk, Key}),
 
-    MetricState = {Key, [{name,MetricName},
-                         {{db_fd, Type}, DbFd},
+    MetricState = {Key, [{{db_fd, Type}, DbFd},
+                         {name,MetricName},
                          {tref, Tref},
                          {cache_fd, CacheFd}]},
 

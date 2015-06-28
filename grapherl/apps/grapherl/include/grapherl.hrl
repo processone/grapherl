@@ -21,6 +21,7 @@
 -define(GEN_DB_WORKER_SUP, gen_db_worker_sup).
 -define(DB_POOL, db_pool).
 
+-define(ETS_SUP, ets_sup).
 
 -define(CHILD(Id, Mod, Args, Restart, Type), {Id, {Mod, start_link, Args},
                                               Restart, 60000, Type, [Mod]}).

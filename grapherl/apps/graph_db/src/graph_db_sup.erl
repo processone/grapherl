@@ -9,7 +9,15 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start_link/0
+        ,stop_ets_sup/0
+        ,init_metric_cache/2
+        ,ets_sup_stop_child/1
+        ,add_child/3
+        ,ets_sup_pid/0
+        ,get_pid/0
+        ]).
+
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -33,6 +41,40 @@
 
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+
+%% ETS_SUP funs
+stop_ets_sup() ->
+    erlang:exit(erlang:whereis(?ETS_SUP), kill).
+
+init_metric_cache(MetricName, {CacheMod, CFun, Dir}) ->
+    add_child(?ETS_SUP, MetricName, {CacheMod, CFun, [MetricName, [{storage_dir, Dir}]]}).
+
+ets_sup_stop_child(Id) ->
+    remove_child(?ETS_SUP, Id).
+
+ets_sup_pid() ->
+    get_pid(?ETS_SUP).
+
+get_pid() ->
+    erlang:whereis(?MODULE).
+
+get_pid(Sup) ->
+    erlang:whereis(Sup).
+
+remove_child(Sup, Id) ->
+    supervisor:terminate_child(Sup, Id).
+
+add_child(Sup, Id, {Mod, Fun, Args}) ->
+    Child = {Id,
+             {Mod, Fun, Args},
+             transient,
+             60000,
+             worker,
+             [Id]},
+    {ok, _Pid, Data} = supervisor:start_child(Sup, Child),
+    {ok, Data}.
+
+
 
 %%====================================================================
 %% Process hirerarcy description 
@@ -98,6 +140,7 @@ init([]) ->
     %% Initializations
     ok = application:ensure_started(lager),
     ok = application:ensure_started(poolboy),
+
     %% router for handling incoming metric data points
     RouterSupSpec =[?MANAGER_CHILD(router_manager, []),
                     ?SIMPLE_SUP(?ROUTER_WORKER_SUP, router_worker)],
@@ -124,8 +167,9 @@ init([]) ->
 
     %% TODO get database module from application environment.
     ChildSpecs = [
-                  ?CHILD(?ROUTER_SUP, simple_sup, [?ROUTER_SUP, one_for_all, RouterSupSpec], permanent, supervisor)
+                  ?CHILD(?ETS_SUP, simple_sup, [?ETS_SUP, one_for_one, []], permanent, supervisor)
                  ,?CHILD(?DB_SUP, simple_sup, [?DB_SUP, one_for_one, DbSupSpec], permanent, supervisor)
+                 ,?CHILD(?ROUTER_SUP, simple_sup, [?ROUTER_SUP, one_for_all, RouterSupSpec], permanent, supervisor)
                  ,DbWorkerSpecs
                  ],
 
@@ -135,3 +179,4 @@ init([]) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
+

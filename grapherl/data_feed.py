@@ -14,7 +14,7 @@ def generate_clients(N):
     return List
 
 def main():
-    N       = 200
+    N       = 500
     Clients = generate_clients(N)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -26,7 +26,7 @@ def main():
             D = json.dumps({'mid': {'mn': "cpu_usage", 'cn': Clients[j]}, 'mp': {ts:val} })
             print(D)
             sock.sendto(str.encode(D), ('localhost', 11111))
-            time.sleep(0.005)
+            time.sleep(0.002)
         ts += 5
 
 if __name__ == "__main__":
