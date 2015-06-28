@@ -149,35 +149,40 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 purge_data(DbMod, DbDir, MetricData) ->
-    purge_data(DbMod, DbDir, MetricData, 0).
+    %purge_data(DbMod, DbDir, MetricData, 0),
+    PurgeData = fun({Key, Data}) ->
+                        {{db_fd, live}, DbFd} = lists:keyfind({db_fd, live}, 1, Data),
+                        aggregate_data(DbDir, DbMod, {Key, Data}, {DbFd, live})
+                end,
+    graph_utils:run_threads(8, MetricData, PurgeData).
 
-purge_data(_DbMod, _DbDir, [], Threads) ->
-    get_status(Threads);
-purge_data(DbMod, DbDir, [{K, MetricData} | Rest], Threads) ->
-    %% Name is the live name for the Metric
-    {{db_fd, live}, DbFd} = lists:keyfind({db_fd, live}, 1, MetricData),
-    if
-        Threads =:= 4 andalso Rest =/= [] ->
-            get_status(1),
-            purge_data(DbMod, DbDir, [{K, MetricData} | Rest], Threads -1);            
+%% purge_data(_DbMod, _DbDir, [], Threads) ->
+%%     get_status(Threads);
+%% purge_data(DbMod, DbDir, [{K, MetricData} | Rest], Threads) ->
+%%     %% Name is the live name for the Metric
+%%     {{db_fd, live}, DbFd} = lists:keyfind({db_fd, live}, 1, MetricData),
+%%     if
+%%         Threads =:= 4 andalso Rest =/= [] ->
+%%             get_status(1),
+%%             purge_data(DbMod, DbDir, [{K, MetricData} | Rest], Threads -1);            
 
-        true ->
-            %io:format("[+] starting thread: ~p~n", [Threads]),
-            Pid = spawn(?MODULE, aggregate_data, [DbDir, DbMod, {K, MetricData}, {DbFd, live}]),
-            erlang:monitor(process, Pid),
-            purge_data(DbMod, DbDir, Rest, Threads + 1)
-    end.
+%%         true ->
+%%             %io:format("[+] starting thread: ~p~n", [Threads]),
+%%             Pid = spawn(?MODULE, aggregate_data, [DbDir, DbMod, {K, MetricData}, {DbFd, live}]),
+%%             erlang:monitor(process, Pid),
+%%             purge_data(DbMod, DbDir, Rest, Threads + 1)
+%%     end.
 
 
-get_status(0) ->
-    ok;
-get_status(N) ->
-    receive
-        {'DOWN', _, _, _, _} -> 
-            get_status(N-1)
-    after
-        10000 -> ok
-    end.
+%% get_status(0) ->
+%%     ok;
+%% get_status(N) ->
+%%     receive
+%%         {'DOWN', _, _, _, _} -> 
+%%             get_status(N-1)
+%%     after
+%%         10000 -> ok
+%%     end.
 
 
 aggregate_data(DbDir, DbMod, {{Mid,Cn}, MetricData}, {DbFd, CurrType}) ->

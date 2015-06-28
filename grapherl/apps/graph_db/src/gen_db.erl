@@ -6,18 +6,22 @@
 -type data()      :: binary().
 -type dataL()     :: [data()].
 -type db_name()   :: any().
--type ret_status():: atom().
+-type db_fd()     :: any().
 -type arg()       :: {any(), any()}.
 -type args()      :: [arg()].
 
--callback init_db(db_name(), args()) -> {ok, ret_status()}.
+-callback init_db(db_name(), args())      -> {ok, db_fd()}.
 
--callback delete_db(db_name()) -> {ok, ret_status()}.
+-callback open_db(db_name(), args())      -> {ok, db_fd()}.
 
--callback insert(db_name(), data()) -> {ok, ret_status()}.
+-callback close_db(db_fd())               -> {ok, success}.
 
--callback insert_many(db_name(), dataL()) -> {ok, ret_status()}.
+-callback delete_db(db_name())            -> {ok, success}.
 
--callback read_all(db_name()) -> {ok, dataL()}.
+-callback insert(db_name(), data())       -> {ok, success}.
 
--callback clear_db(db_name()) -> {ok, ret_status()}.
+-callback insert_many(db_name(), dataL()) -> {ok, success}.
+
+-callback read_all(db_fd())               -> {ok, dataL()}.
+
+-callback clear_db(db_fd())               -> {ok, success}.

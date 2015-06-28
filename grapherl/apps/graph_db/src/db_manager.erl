@@ -193,10 +193,6 @@ handle_call({get_metric_fd, Mid, Cn, Granularity}, _From,  State) ->
             {ok, DbFd}  = create_db(DbMod, init_db, {MetricName, Dir}),
             MetricDataN = lists:keystore({db_fd, Granularity}, 1, MetricData,
                                          {{db_fd,Granularity}, DbFd}),
-            case is_binary(MetricDataN) of
-                true -> erlang:error("~n~n~n~n~n~n~n~[+] duak just happen~n~n~n~n~n~n~n~n~n");
-                _ -> ok
-            end,
 
             ets:insert(?MODULE, {{Mid,Cn}, MetricDataN}),
             {reply, {ok, CacheFd, DbFd}, State};
@@ -260,28 +256,29 @@ terminate(Reason, #{db := DbMod, cache := CacheMod}) ->
     io:format("~n[+] Saving db_manager state ... reason ~p~n", [Reason]),
     case Reason of
         shutdown ->
-            ets:foldl(
-              fun({Key, Value}, Acc) ->
-                      {ok, [Name
-                           ,CacheFd
-                           ,DbFd
-                           ,Tref]} = graph_utils:get_args(Value, [name
-                                                                 ,cache_fd
-                                                                 ,{db_fd, live}
-                                                                 ,tref]),
-                      
-                      %% store cache before crashing or terminating
-                      {ok, Data}    = CacheMod:read_all(CacheFd),
-                      {ok, success} = DbMod:insert_many(DbFd, Data),
-                      CacheMod:close_db(CacheFd),
-                      if Reason =:= shutdown -> graph_db_sup:ets_sup_stop_child(Name); true -> ok end,
+            Metrics     = ets:match(?MODULE, '$1'),
+            CleanMetric =
+                fun([{Key, Value}]) ->
+                        {ok, [Name
+                             ,CacheFd
+                             ,DbFd
+                             ,Tref]} = graph_utils:get_args(Value, [name
+                                                                   ,cache_fd
+                                                                   ,{db_fd, live}
+                                                                   ,tref]),
 
-                      timer:cancel(Tref),
-                      [DbMod:close_db(Fd) || {{db_fd, _Type}, Fd} <- Value],
-                      ets:insert(?MODULE, {Key, Name}),
-                      Acc
+                        %% store cache before crashing or terminating
+                        {ok, Data}    = CacheMod:read_all(CacheFd),
+                        {ok, success} = DbMod:insert_many(DbFd, Data),
+                        CacheMod:close_db(CacheFd),
+                        if Reason =:= shutdown -> graph_db_sup:ets_sup_stop_child(Name); true -> ok end,
 
-              end, 0, ?MODULE);
+                        timer:cancel(Tref),
+                        [DbMod:close_db(Fd) || {{db_fd, _Type}, Fd} <- Value],
+                        ets:insert(?MODULE, {Key, Name})
+                end,
+            graph_utils:run_threads(8, Metrics, CleanMetric);
+
         _ ->
             ok
     end,
