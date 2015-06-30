@@ -19,7 +19,6 @@ client(Name, Socket, Num, Ts) ->
     Data = data(Name, Ts),
     io:format("[+] Sending ~p~n", [Data]),
     gen_udp:send(Socket, {127,0,0,1}, 11111, Data),
-    ets:insert(testrouter, {key,val}),
     timer:sleep(5),
     client(Name, Socket, Num -1, Ts + 1).
 
