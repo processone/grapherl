@@ -14,7 +14,7 @@ def generate_clients(N):
     return List
 
 def main():
-    N       = 500
+    N       = 2
     Clients = generate_clients(N)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

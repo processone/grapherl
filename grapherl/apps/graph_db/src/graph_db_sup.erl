@@ -142,8 +142,10 @@ init([]) ->
     ok = application:ensure_started(poolboy),
 
     %% router for handling incoming metric data points
-    RouterSupSpec =[?MANAGER_CHILD(router_manager, []),
-                    ?SIMPLE_SUP(?ROUTER_WORKER_SUP, router_worker)],
+    RouterSupSpec =[?SIMPLE_SUP(?ROUTER_WORKER_SUP, router_worker)
+                   ,?MANAGER_CHILD(router_manager, [])
+                   ,?MANAGER_CHILD(msg_queue_processor, [])
+                   ],
 
     %% poolboy initalization for db worker processes
     {ok, DbMod}       = application:get_env(graph_db, db_mod),

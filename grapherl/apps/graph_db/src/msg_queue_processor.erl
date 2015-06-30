@@ -1,9 +1,9 @@
--module(router_worker).
+-module(msg_queue_processor).
 
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/1]).
+-export([start_link/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -13,10 +13,8 @@
          terminate/2,
          code_change/3]).
 
--include_lib("apps/grapherl/include/grapherl.hrl").
--include_lib("../include/graph_db_records.hrl").
 
--define(TIMEOUT, 0).
+-include_lib("../include/graph_db_records.hrl").
 
 %%%===================================================================
 %%% API functions
@@ -29,9 +27,8 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Args) ->
-    gen_server:start_link(?MODULE, [Args], []).
-    %gen_server:start_link({local, ?MODULE}, ?MODULE, [Args], []).
+start_link() ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -48,15 +45,11 @@ start_link(Args) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([Args]) ->
-    ?INFO("Starting ~p with args: ~p ~n", [?MODULE, Args]),
-    case graph_utils:get_args(Args, [socket]) of
-        {ok, [Socket]} ->
-            {ok, #{socket => Socket}, 0};
-        _ ->
-            ?ERROR("ERROR(~p): no UDP socket found.~n", [?MODULE]),
-            {stop, no_socket}
-    end.
+init([]) ->
+    ets:new(?MSG_QUEUE, [set, public, named_table, duplicate_bag,
+                         {write_concurrency, true},
+                         {read_concurrency, true}]),
+    {ok, #{}, 0}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -99,36 +92,18 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-%% receives data in json format: 
-%% '{"mp": {"ts": "value"}, "mid": {"mn": "cpu_usage", "cn": "www.server01.com"}}'
-%%
-handle_info(timeout, #{socket := Socket} = State) ->
-    case procket:recvfrom(Socket, 16#FFFF) of
-        {error, eagain} ->
-            %timer:sleep(5),
-            {noreply, State, 5};
+handle_info(timeout, State) ->
+    %case ets:first(?MSG_QUEUE) of
+    case ets:match(?MSG_QUEUE, '$1', 5000) of
+        '$end_of_table'  ->
+            {noreply, State, 50};
 
-
-        {ok, Buf} ->
-            #packet{mn=Mn, cn=Cn, mp={Key,Val}} = graph_utils:decode_packet(Buf),
-            %?INFO("Metric Data ~p~n", [Buf]),
-            ets:insert(?MSG_QUEUE, {{Mn,Cn}, {Key,Val}}),
-            %db_worker:store(PacketD),
-            {noreply, State, 0};
-
-        Other ->
-            ?INFO("unknown message received by router worker ~p~n", [Other])
-
+        {DataNested, _}  ->
+            Data = lists:flatten(DataNested),
+            db_worker:store(Data),
+            lists:map(fun(Obj) -> ets:delete_object(?MSG_QUEUE, Obj) end, Data),
+            {noreply, State, 200}
     end;
-    %% case gen_udp:recv(Socket, 4) of
-    %%     {error, _Reason} ->
-    %%         ok;
-    %%         %?ERROR("Socket Worker(~p): ~p~n", [router, Reason]);
-    %%     {ok, {_Address,_Port, Packet}}->
-    %%         PacketD = graph_utils:decode_packet(Packet),
-    %%         ?INFO("Metric Data ~p~n", [PacketD])
-    %%         %db_worker:store(PacketD)
-    %% end,
 
 handle_info(_Info, State) ->
     {noreply, State}.

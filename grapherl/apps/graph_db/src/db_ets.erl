@@ -63,11 +63,9 @@ insert(MetricName, DataPoint) when is_atom(MetricName) ->
 
 
 %% insert multiple data points
-insert_many(_MetricName, []) ->
-    {ok, success};
-insert_many(MetricName, [DataPoint | Rest]) ->
-    insert(MetricName, DataPoint),
-    insert_many(MetricName, Rest).
+insert_many(MetricName, DataPoints) ->
+    insert(MetricName, DataPoints).
+
 
 
 %% delete all data points

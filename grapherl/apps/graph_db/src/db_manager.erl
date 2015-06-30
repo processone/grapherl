@@ -172,7 +172,8 @@ handle_call({get_metric_fd, Mid, Cn, live}, _From,  State) ->
             {reply, {ok, CacheFd, DbFd}, State};
 
         [{_, MetricData}] ->
-            {ok, [CacheFd, DbFd]} = graph_utils:get_args(MetricData, [cache_fd, {db_fd, live}]),
+            {ok, [CacheFd, DbFd]} = graph_utils:get_args(MetricData,
+                                                         [cache_fd, {db_fd, live}]),
             {reply, {ok, CacheFd, DbFd}, State}
     end;
 

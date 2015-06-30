@@ -11,16 +11,17 @@
    ,poolboy
    ,lager
    ,mochiweb
+   ,procket
    ]}
  ,{env,
-   [{num_routers, 10}
-   ,{num_db_workers, 8}
+   [{num_routers, 4}
+   ,{num_db_workers, 10}
    ,{num_servers, 10}
    ,{cache_mod, db_ets}
    ,{db_mod, db_levelDB}
    ,{storage_dir, <<"/var/db/grapherl/">>}
-   ,{cache_to_disk_timeout, 10000}
-   ,{db_daemon_timeout, 7000} % milliseconds
+   ,{cache_to_disk_timeout, 600000}
+   ,{db_daemon_timeout, 600000} % milliseconds
    ]}
  ,{modules, []}
  ]}.

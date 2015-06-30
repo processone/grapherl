@@ -34,8 +34,8 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-    proc_lib:start_link(?MODULE, init, [[]]).
-    %gen_server:start_link({local, ?MODULE}, ?MODULE, [Args], []).
+    %proc_lib:start_link(?MODULE, init, [[]]).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -56,14 +56,14 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    process_flag(trap_exit, true),
-
-    ok = proc_lib:init_ack({ok, self()}),
+    %process_flag(trap_exit, true),
+    %ok = proc_lib:init_ack({ok, self()}),
     ?INFO("~p(~p): Starting~n", [?MODULE, self()]),
 
     %% start default UDP ports for handling requests and receiving data.
     {ok, State} = init_router_socket(?R_PORT, #state{}),
-    gen_server:enter_loop(?MODULE, [], State#state{attempts = 0}, 0).
+    {ok, State, 0}.
+    %%gen_server:enter_loop(?MODULE, [], State#state{attempts = 0}, 0).
 
 
 %%--------------------------------------------------------------------
@@ -111,7 +111,6 @@ handle_info(timeout, State) ->
     %% even though graph_socket_manager is started after ROUTER_SUP and
     %% REQ_HANDLER_SUP servers we use precaution to let the supervisors start
     %% before calling them
-
     try init_workers(State#state.sockets) of
         _ ->
             {noreply, State}
@@ -124,7 +123,8 @@ handle_info(timeout, State) ->
                     {noreply, State, 10}
             end
     end;
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+    io:format("[+] router_manager received unkown message: ~p~n", [Info]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -143,7 +143,8 @@ terminate(_Reason, State) ->
     ?INFO("~p stopping ~p ~n", [?MODULE, Sockets]),
     lists:map(fun(SocketData) ->
                       {socket, Socket} = lists:keyfind(socket, 1, SocketData),
-                      gen_udp:close(Socket)
+                      procket:close(Socket)
+                      %gen_udp:close(Socket)
               end, Sockets),
     ok.
 
@@ -163,7 +164,8 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 init_router_socket(Port, State) ->
-    {ok, SocketR} = graph_utils:open_port(udp, Port),
+    %{ok, SocketR} = graph_utils:open_port(udp, Port),
+    {ok, SocketR} = procket:open(11111, [{protocol, udp}, {type, dgram}, {family, inet}]),
     R_Socket      = [{node, node()}, {socket, SocketR}, {port, Port},
                      {type, ?ROUTER}],
     NewSockList   = [R_Socket | State#state.sockets],
@@ -174,7 +176,25 @@ init_router_socket(Port, State) ->
 init_workers(SocketList) ->
     {ok, RouterNum} = application:get_env(num_routers),
     {ok, Socket}    = graph_utils:get_socket(?ROUTER, SocketList),
-    ?INFO("~p Initializing ~p router workers.~n", [?MODULE, RouterNum]),
+    %{ok, Socket} = procket:open(11111, [{protocol, udp}, {type, dgram}, {family, inet}]),
+    ?INFO("Opening socket with procket : ~p ~n", [Socket]),
+    %%server_loop2(Socket).
+
     [ supervisor:start_child(?ROUTER_WORKER_SUP, [[{socket, Socket}]])
-      || _N <- lists:seq(1,RouterNum)].
+      || _N <- lists:seq(1,RouterNum)],
+    ok.
+
+%% server_loop2(Socket) ->
+%%     case procket:recvfrom(Socket, 16#FFFF) of
+%%         {error, eagain} ->
+%%             timer:sleep(10),
+%%             server_loop2(Socket);
+%%         % EOF
+%%         {ok, <<>>} ->
+%%             io:format("** client disconnected~n");
+%%         {ok, Buf} ->
+%%             ?INFO("Metric Data ~p~n", [Buf]),
+%%             ets:insert(testrouter, {key,val}),
+%%             server_loop2(Socket)
+%%     end.
 

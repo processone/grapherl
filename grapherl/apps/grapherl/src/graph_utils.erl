@@ -31,8 +31,9 @@ get_args0(TL, [Key|T], Acc) ->
     {Key, Val} = lists:keyfind(Key, 1, TL),
     get_args0(TL, T, [Val| Acc]).
 
+%% NOT IN USE
 open_port(udp, Port) ->
-    gen_udp:open(Port, [{active, false}, binary]);
+    gen_udp:open(Port, [{active, true}, binary]);
 open_port(tcp, Port) ->
     gen_tcp:listen(Port, [binary, {packet, 4}, {active, false},
                           {reuseaddr, true}] ).
@@ -63,12 +64,14 @@ decode_packet(Packet) when is_binary(Packet) ->
 
 to_binary(Val) when is_binary(Val) ->
     Val;
+to_binary(Val) when is_integer(Val) ->
+    erlang:integer_to_binary(Val);
 to_binary(Val) when is_float(Val) ->
-    float_to_binary(Val);
+    erlang:float_to_binary(Val);
 to_binary(Val) when is_list(Val) ->
-    list_to_binary(Val);
+    erlang:list_to_binary(Val);
 to_binary(Val) when is_atom(Val) ->
-    atom_to_binary(Val, utf8).
+    erlang:atom_to_binary(Val, utf8).
 
 
 mean(List) ->

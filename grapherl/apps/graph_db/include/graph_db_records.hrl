@@ -11,3 +11,5 @@
 -define(HOUR, hour).
 -define(DAY, day).
 
+-define(MSG_QUEUE, msg_queue).
+

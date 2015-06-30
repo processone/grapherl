@@ -121,9 +121,10 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({store, #packet{mn=Mn, cn=Cn, mp={Key,Val}}}, #{cache_mod := Cache} = State) ->
-    {ok, CacheFd, _} = db_manager:get_metric_fd(Mn, Cn),
-    {ok, _}          = Cache:insert(CacheFd, {Key, Val}),
+%handle_cast({store, #packet{mn=Mn, cn=Cn, mp={Key,Val}}}, #{cache_mod := Cache} = State) ->
+handle_cast({store, Data}, #{cache_mod := Cache} = State) ->
+    {ok, Batch}  = prepare_batch(Data, []),
+    {ok, _}      = store_batch(Batch, Cache),
     {noreply, State};
 
 handle_cast({dump_to_disk, {Mn, Cn}}, #{db_mod := Db, cache_mod := Cache} = State) ->
@@ -178,3 +179,20 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+store_batch([], _) ->
+    {ok, success};
+store_batch([{{Mn,Cn}, Data} | Rest], Cache) ->
+    {ok, CacheFd, _} = db_manager:get_metric_fd(Mn, Cn),
+    {ok, _}          = Cache:insert_many(CacheFd, Data),
+    store_batch(Rest, Cache).
+
+
+prepare_batch([], Acc) ->
+    {ok, Acc};
+prepare_batch([{{Mn, Cn}, KeyVal} | Rest], Acc) ->
+    case lists:keyfind({Mn,Cn}, 1, Acc) of
+        false ->
+            prepare_batch(Rest, [{{Mn,Cn}, [KeyVal]} | Acc]);
+        {{Mn,Cn}, Data} ->
+            prepare_batch(Rest, lists:keystore({Mn,Cn}, 1, Acc, {{Mn,Cn}, [KeyVal | Data]}))
+    end.
