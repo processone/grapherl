@@ -105,6 +105,7 @@ init([Args]) ->
           ,cache       => CacheMod
           ,storage_dir => Dir}}.
 
+%% reload db_manager state from disk
 reload_state(DbMod, CacheMod, Dir) ->
     case ets:info(?MODULE) of
         undefined ->
@@ -114,6 +115,7 @@ reload_state(DbMod, CacheMod, Dir) ->
             {ok, success}
     end.
 
+%% initalize metric cache from db_manager state
 init_db_handlers(DbMod, CacheMod, Dir) ->
     ets:foldl(
       fun({Key, MetricName}, Acc) ->
@@ -122,6 +124,7 @@ init_db_handlers(DbMod, CacheMod, Dir) ->
               Acc
       end, 0, ?MODULE).
 
+%% load db_manager ets dump from disk
 load_prev_state() ->
     case ets:file2tab("db_manager.dat") of 
         {error,{read_error,{file_error, _, enoent}}} ->
@@ -234,6 +237,7 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+%% dump metric cache to disk
 handle_info({cache_to_disk, MetricId}, State) ->
     db_worker:dump_data(MetricId),
     {noreply, State};
@@ -301,7 +305,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
+%% initalize metric ram and db instances
 bootstrap_metric(Key, MetricName, {DbMod, DFun, Type}, {CacheMod, CFun}, Dir) ->
     %% {ok, CacheFd} = create_db(CacheMod, CFun, {MetricName, Dir}),
     %% create ets table as direct children of graph_db_sup

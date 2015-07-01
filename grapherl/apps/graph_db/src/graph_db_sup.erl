@@ -140,11 +140,12 @@ init([]) ->
     %% Initializations
     ok = application:ensure_started(lager),
     ok = application:ensure_started(poolboy),
-
+    
+    Ports = [?R_PORT],
     %% router for handling incoming metric data points
     RouterSupSpec =[?SIMPLE_SUP(?ROUTER_WORKER_SUP, router_worker)
-                   ,?MANAGER_CHILD(router_manager, [])
-                   ,?MANAGER_CHILD(msg_queue_processor, [])
+                   ,?MANAGER_CHILD(router_manager, [[{ports, Ports}]])
+                   ,?MANAGER_CHILD(msg_queue_processor, [[{ports, Ports}]])
                    ],
 
     %% poolboy initalization for db worker processes

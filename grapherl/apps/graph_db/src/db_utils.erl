@@ -1,6 +1,8 @@
 -module(db_utils).
 
--export([unix_time/0
+-export([gc/0
+        ,unix_time/0
+        ,get_msg_queue_name/1
         ,db_live/1
         ,get_avg_interval/1
         ,db_minutes/1
@@ -18,12 +20,36 @@
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
 -define(UNIX_EPOCH, 62167219200).
 
+
+%%%===================================================================
+%%% API
+%%%===================================================================
+
+%% garbage collect if the memory consumption exceeds 10Mb
+gc() ->
+    case erlang:process_info(self(), memory) of
+        {memory, Mem} when Mem > 10*1024*1024 ->
+            erlang:garbage_collect(self());
+        _ ->
+            ok
+    end.
+    
+
 unix_time() ->
     datetime_to_unix_time(erlang:universaltime()).
 
+
+%% generate name for message queue based on port
+get_msg_queue_name(Port) ->
+    erlang:list_to_atom("queue" ++ erlang:integer_to_list(Port)).
+
+
+%% epoch time
 datetime_to_unix_time({{_,_,_},{_,_,_}} = DateTime) ->
     calendar:datetime_to_gregorian_seconds(DateTime) - ?UNIX_EPOCH.
 
+
+%% names for db objects based on granularity
 db_live(Name) when is_binary(Name) ->
     Name.
 
@@ -37,6 +63,7 @@ db_days(Name) when is_binary(Name) ->
     <<Name/binary, "_days">>.
 
 
+%% convert to metric name for metric id
 to_metric_name({Mid, Cn}) ->
     <<Mid/binary, "-", Cn/binary>>.
 
@@ -93,3 +120,5 @@ get_aggregation_size(?HOUR) -> 3600 * 24 * 365;
 %% keep the diff for day to be large so that no compression occurs
 get_aggregation_size(?DAY)  -> 3600 * 24 * 365 * 100;
 get_aggregation_size(_)     -> 3600 * 24 * 365 * 100.
+
+

@@ -17,9 +17,8 @@ client(_Name, Socket, 0, _Ts) ->
     gen_udp:close(Socket);
 client(Name, Socket, Num, Ts) ->
     Data = data(Name, Ts),
-    io:format("[+] Sending ~p~n", [Data]),
     gen_udp:send(Socket, {127,0,0,1}, 11111, Data),
-    timer:sleep(5),
+    timer:sleep(20),
     client(Name, Socket, Num -1, Ts + 1).
 
 
@@ -30,6 +29,7 @@ spawn_clients(Num, Packets) ->
 spawn_clients(0, _Port, _Packets) ->
     ok;
 spawn_clients(Num, Port, Packets) ->
+    io:format("[+] Started data sending ~n", []),
     erlang:spawn(
       fun() ->
               {ok, Socket} = gen_udp:open(Port),

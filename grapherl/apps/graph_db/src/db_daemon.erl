@@ -105,6 +105,7 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+%% compress/purge metric data
 handle_info(timeout,  State) ->
     #{storage_dir := DbDir, timeout := Timeout, db_mod := DbMod} = State,
     io:format("~n[db_daemon] staring purging~n"),
@@ -154,35 +155,8 @@ purge_data(DbMod, DbDir, MetricData) ->
                         {{db_fd, live}, DbFd} = lists:keyfind({db_fd, live}, 1, Data),
                         aggregate_data(DbDir, DbMod, {Key, Data}, {DbFd, live})
                 end,
-    graph_utils:run_threads(8, MetricData, PurgeData).
-
-%% purge_data(_DbMod, _DbDir, [], Threads) ->
-%%     get_status(Threads);
-%% purge_data(DbMod, DbDir, [{K, MetricData} | Rest], Threads) ->
-%%     %% Name is the live name for the Metric
-%%     {{db_fd, live}, DbFd} = lists:keyfind({db_fd, live}, 1, MetricData),
-%%     if
-%%         Threads =:= 4 andalso Rest =/= [] ->
-%%             get_status(1),
-%%             purge_data(DbMod, DbDir, [{K, MetricData} | Rest], Threads -1);            
-
-%%         true ->
-%%             %io:format("[+] starting thread: ~p~n", [Threads]),
-%%             Pid = spawn(?MODULE, aggregate_data, [DbDir, DbMod, {K, MetricData}, {DbFd, live}]),
-%%             erlang:monitor(process, Pid),
-%%             purge_data(DbMod, DbDir, Rest, Threads + 1)
-%%     end.
-
-
-%% get_status(0) ->
-%%     ok;
-%% get_status(N) ->
-%%     receive
-%%         {'DOWN', _, _, _, _} -> 
-%%             get_status(N-1)
-%%     after
-%%         10000 -> ok
-%%     end.
+    graph_utils:run_threads(8, MetricData, PurgeData),
+    db_utils:gc().
 
 
 aggregate_data(DbDir, DbMod, {{Mid,Cn}, MetricData}, {DbFd, CurrType}) ->
@@ -210,6 +184,7 @@ aggregate_data(DbDir, DbMod, {{Mid,Cn}, MetricData}, {DbFd, CurrType}) ->
     end.
 
 
+%% get the next db object based on granularity
 get_next_db_fd({Mid,Cn}, NextType, MetricData) ->
     case lists:keyfind({db_fd, NextType}, 1, MetricData) of
         {{db_fd, NextType}, NextFd} ->
@@ -220,6 +195,7 @@ get_next_db_fd({Mid,Cn}, NextType, MetricData) ->
     end.
 
 
+%% compression and purging routine
 merge_points([], _Diff, _Args) ->
     ok;
 merge_points([{_K,_V}], _Diff, _Args) ->
@@ -246,7 +222,6 @@ merge_points([{K,V} | Rest], {_Base, {Type, Interval}}, Args,
                     graph_utils:binary_to_realNumber(
                       graph_utils:mean(AccK)))),
 
-    %io:format("~n~ncompressed ~n~p~nto:~p~n", [DelPoints, {AvgKey, NewVal}]),
     {ok, success} = DbMod:insert(DbFdNext, {AvgKey, NewVal}),
     if Purge =:= true -> {ok, success} = DbMod:delete_many(DbFd, DelPoints); true -> ok end,
 
@@ -267,6 +242,7 @@ merge_points([{K,V} | Rest], {Base, {Type, Interval}}, Args,
     merge_points(Rest, {IntK, Diff}, Args, KVAcc, [{K,V} | DelPoints]).
 
 
+%% check if there are enough data points to be purged
 should_be_purged(KeyVal, Type) ->
     case get_granularity(KeyVal, Type) of
         {next, stop} -> {false, stop};

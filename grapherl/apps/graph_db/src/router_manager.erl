@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/0]).
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -33,9 +33,8 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    %proc_lib:start_link(?MODULE, init, [[]]).
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+start_link(Args) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [Args], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -55,15 +54,14 @@ start_link() ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
-    %process_flag(trap_exit, true),
-    %ok = proc_lib:init_ack({ok, self()}),
-    ?INFO("~p(~p): Starting~n", [?MODULE, self()]),
+init([Args]) ->
+    {ok, [PortList]} = graph_utils:get_args(Args, [ports]),
 
+    ?INFO("~p(~p): Starting with args ~p~n", [?MODULE, self(), PortList]),
     %% start default UDP ports for handling requests and receiving data.
-    {ok, State} = init_router_socket(?R_PORT, #state{}),
+    {ok, State} = init_router_socket(PortList, #state{}),
     {ok, State, 0}.
-    %%gen_server:enter_loop(?MODULE, [], State#state{attempts = 0}, 0).
+
 
 
 %%--------------------------------------------------------------------
@@ -107,20 +105,19 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+%% initalize router_worker processes to handle metric data points
 handle_info(timeout, State) ->
-    %% even though graph_socket_manager is started after ROUTER_SUP and
-    %% REQ_HANDLER_SUP servers we use precaution to let the supervisors start
-    %% before calling them
     try init_workers(State#state.sockets) of
         _ ->
             {noreply, State}
     catch
-        _:_ ->
+        _:Error ->
+            io:format("[-] Error occuered while starting router_workers: ~p~n~p~n", [Error, erlang:get_stacktrace()]),
             if 
                 State#state.attempts > ?MAX_ATTEMPS ->
                     {stop, max_attemps_exceeded, State};
                 true ->
-                    {noreply, State, 10}
+                    {noreply, State, 1000}
             end
     end;
 handle_info(Info, State) ->
@@ -162,39 +159,33 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-init_router_socket(Port, State) ->
+%% initalize sockets
+init_router_socket([], State) ->
+    {ok, State};
+init_router_socket([Port | Rest], State) ->
     %{ok, SocketR} = graph_utils:open_port(udp, Port),
-    {ok, SocketR} = procket:open(11111, [{protocol, udp}, {type, dgram}, {family, inet}]),
+    ?INFO("Opening socket with procket : ~p ~n", [Port]),
+    {ok, SocketR} = procket:open(Port, [{protocol, udp}, {type, dgram}, {family, inet}]),
     R_Socket      = [{node, node()}, {socket, SocketR}, {port, Port},
                      {type, ?ROUTER}],
     NewSockList   = [R_Socket | State#state.sockets],
-    {ok, State#state{sockets=NewSockList}}.
+    init_router_socket(Rest, State#state{sockets=NewSockList}).
 
-%% start num_routers processes and passes CacheMod as argument which used for
-%% storing cache.
-init_workers(SocketList) ->
-    {ok, RouterNum} = application:get_env(num_routers),
-    {ok, Socket}    = graph_utils:get_socket(?ROUTER, SocketList),
-    %{ok, Socket} = procket:open(11111, [{protocol, udp}, {type, dgram}, {family, inet}]),
-    ?INFO("Opening socket with procket : ~p ~n", [Socket]),
-    %%server_loop2(Socket).
 
-    [ supervisor:start_child(?ROUTER_WORKER_SUP, [[{socket, Socket}]])
-      || _N <- lists:seq(1,RouterNum)],
-    ok.
+%% initalize router_worker processes for each open port
+init_workers([]) ->
+    ok;
+init_workers([SocketData | Rest]) ->
+    {ok, RouterNum}  = application:get_env(num_routers),
+    {socket, Socket} = lists:keyfind(socket, 1, SocketData),
+    {port, Port}     = lists:keyfind(port, 1, SocketData),
 
-%% server_loop2(Socket) ->
-%%     case procket:recvfrom(Socket, 16#FFFF) of
-%%         {error, eagain} ->
-%%             timer:sleep(10),
-%%             server_loop2(Socket);
-%%         % EOF
-%%         {ok, <<>>} ->
-%%             io:format("** client disconnected~n");
-%%         {ok, Buf} ->
-%%             ?INFO("Metric Data ~p~n", [Buf]),
-%%             ets:insert(testrouter, {key,val}),
-%%             server_loop2(Socket)
-%%     end.
+    lists:map(
+      fun(_N) ->
+              MsgQ = db_utils:get_msg_queue_name(Port),
+              supervisor:start_child(?ROUTER_WORKER_SUP, [[{socket, Socket},
+                                                           {msg_queue, MsgQ}]])
+      end, lists:seq(1,RouterNum)),
+
+    init_workers(Rest).
 

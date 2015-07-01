@@ -3,7 +3,9 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/0]).
+-export([start_link/1
+        ,flush_queue/0
+        ]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -19,6 +21,8 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+flush_queue() ->
+    gen_server:cast(?MODULE, {flush_queue}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -27,8 +31,8 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+start_link(Args) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [Args], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -45,11 +49,18 @@ start_link() ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
-    ets:new(?MSG_QUEUE, [set, public, named_table, duplicate_bag,
-                         {write_concurrency, true},
-                         {read_concurrency, true}]),
-    {ok, #{}, 0}.
+init([Args]) ->
+    {ok, [Ports]} = graph_utils:get_args(Args, [ports]),
+    {ok, Block}   = application:get_env(graph_db, msg_queue_block),
+    MsgQs = lists:map(
+             fun(Port) ->
+                     MsgQ = db_utils:get_msg_queue_name(Port),
+                     ets:new(MsgQ, [set, public, named_table, duplicate_bag,
+                                    {write_concurrency, true},
+                                    {read_concurrency, true}]),
+                     MsgQ
+             end, Ports),
+    {ok, #{block_size => Block, msg_queue => MsgQs}, 0}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -79,6 +90,12 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({flush_queue}, #{msg_queue := List} = State) ->
+    lists:map(
+     fun(Tab) ->
+             ets:delete_all_objects(Tab)
+     end, List),
+    {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -92,18 +109,24 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info(timeout, State) ->
-    %case ets:first(?MSG_QUEUE) of
-    case ets:match(?MSG_QUEUE, '$1', 5000) of
-        '$end_of_table'  ->
-            {noreply, State, 50};
 
-        {DataNested, _}  ->
-            Data = lists:flatten(DataNested),
-            db_worker:store(Data),
-            lists:map(fun(Obj) -> ets:delete_object(?MSG_QUEUE, Obj) end, Data),
-            {noreply, State, 200}
-    end;
+%% fetch chunks from the message queue and send then to db worker for
+%% processing
+handle_info(timeout, #{block_size := BlockSize, msg_queue := List} = State) ->
+    lists:map(
+      fun(Tab) ->
+              case ets:match(Tab, '$1', BlockSize) of
+                  '$end_of_table'  ->
+                      ok;
+
+                  {DataNested, _}  ->
+                      Data = lists:flatten(DataNested),
+                      db_worker:store(Data),
+                      lists:map(fun(Obj) -> ets:delete_object(Tab, Obj) end, Data)
+              end
+      end, List),
+    db_utils:gc(),
+    {noreply, State, 200};
 
 handle_info(_Info, State) ->
     {noreply, State}.

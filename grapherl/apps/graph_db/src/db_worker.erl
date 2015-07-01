@@ -78,9 +78,13 @@ start_link(Args) ->
 %%--------------------------------------------------------------------
 init([Args]) ->
     ?INFO("~p starting with args: ~p ~n", [?MODULE, Args]),
+
     case graph_utils:get_args(Args, [db_mod, cache_mod]) of
         {ok, [DbMod, CacheMod]} ->
-            {ok, #{db_mod => DbMod, cache_mod => CacheMod, id => self()}};
+            %% garbage collect after 100 sec
+            {ok, Tref} = timer:send_interval(100000, {gc}),
+            {ok, #{db_mod => DbMod, cache_mod => CacheMod, id => self(), tref => Tref}};
+
         _ ->
             ?ERROR("ERROR(~p): no UDP socket found.~n", [?MODULE]),
             {stop, no_socket}
@@ -121,12 +125,13 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-%handle_cast({store, #packet{mn=Mn, cn=Cn, mp={Key,Val}}}, #{cache_mod := Cache} = State) ->
+%% store data from message queue in the respective metric cache tables
 handle_cast({store, Data}, #{cache_mod := Cache} = State) ->
     {ok, Batch}  = prepare_batch(Data, []),
     {ok, _}      = store_batch(Batch, Cache),
     {noreply, State};
 
+%% dump metric cache to disk
 handle_cast({dump_to_disk, {Mn, Cn}}, #{db_mod := Db, cache_mod := Cache} = State) ->
     {ok, CacheFd, DbFd}  = db_manager:get_metric_fd(Mn, Cn),
     {ok, Data}           = Cache:read_all(CacheFd),
@@ -148,6 +153,10 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+%% garbage collect process data
+handle_info({gc}, State) ->
+    db_utils:gc(),
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -162,7 +171,8 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, _State) ->
+terminate(_Reason, #{tref := Tref} = _State) ->
+    timer:cancel(Tref),
     ok.
 
 %%--------------------------------------------------------------------

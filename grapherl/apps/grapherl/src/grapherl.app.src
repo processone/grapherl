@@ -6,8 +6,12 @@
  ,{applications,
    [kernel
    ,stdlib
+   ,runtime_tools
+   ,observer
+   ,wx
    ,graph_db
    ,graph_web
+   ,sync
    ]}
  ,{env,[]}
  ,{modules, []}

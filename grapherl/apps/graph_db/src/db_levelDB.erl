@@ -56,7 +56,7 @@ insert(#{ref := Ref}, {Key, Value}) ->
 
 %% insert multiple data points
 insert_many(#{ref := Ref}, Points) ->
-    ok = eleveldb:write(Ref, [{put, K, V} || {K,V} <- Points], [{sync, true}]),
+    ok = eleveldb:write(Ref, [{put, K, V} || {K,V} <- Points], []),
     {ok, success}.
 
 %% insert multiple data points

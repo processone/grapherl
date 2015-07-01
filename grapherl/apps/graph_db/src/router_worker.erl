@@ -14,7 +14,7 @@
          code_change/3]).
 
 -include_lib("apps/grapherl/include/grapherl.hrl").
--include_lib("../include/graph_db_records.hrl").
+
 
 -define(TIMEOUT, 0).
 
@@ -31,7 +31,6 @@
 %%--------------------------------------------------------------------
 start_link(Args) ->
     gen_server:start_link(?MODULE, [Args], []).
-    %gen_server:start_link({local, ?MODULE}, ?MODULE, [Args], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -50,9 +49,9 @@ start_link(Args) ->
 %%--------------------------------------------------------------------
 init([Args]) ->
     ?INFO("Starting ~p with args: ~p ~n", [?MODULE, Args]),
-    case graph_utils:get_args(Args, [socket]) of
-        {ok, [Socket]} ->
-            {ok, #{socket => Socket}, 0};
+    case graph_utils:get_args(Args, [socket, msg_queue]) of
+        {ok, [Socket, MsgQ]} ->
+            {ok, #{socket => Socket, msg_queue => MsgQ}, 0};
         _ ->
             ?ERROR("ERROR(~p): no UDP socket found.~n", [?MODULE]),
             {stop, no_socket}
@@ -102,33 +101,22 @@ handle_cast(_Msg, State) ->
 %% receives data in json format: 
 %% '{"mp": {"ts": "value"}, "mid": {"mn": "cpu_usage", "cn": "www.server01.com"}}'
 %%
-handle_info(timeout, #{socket := Socket} = State) ->
+handle_info(timeout, #{socket := Socket, msg_queue := MsgQ} = State) ->
     case procket:recvfrom(Socket, 16#FFFF) of
         {error, eagain} ->
-            %timer:sleep(5),
-            {noreply, State, 5};
+            {noreply, State, 2};
 
-
+        %% store received data points into message queue
         {ok, Buf} ->
-            #packet{mn=Mn, cn=Cn, mp={Key,Val}} = graph_utils:decode_packet(Buf),
             %?INFO("Metric Data ~p~n", [Buf]),
-            ets:insert(?MSG_QUEUE, {{Mn,Cn}, {Key,Val}}),
-            %db_worker:store(PacketD),
+            #packet{mn=Mn, cn=Cn, mp={Key,Val}} = graph_utils:decode_packet(Buf),
+            ets:insert(MsgQ, {{Mn,Cn}, {Key,Val}}),
             {noreply, State, 0};
 
         Other ->
             ?INFO("unknown message received by router worker ~p~n", [Other])
 
     end;
-    %% case gen_udp:recv(Socket, 4) of
-    %%     {error, _Reason} ->
-    %%         ok;
-    %%         %?ERROR("Socket Worker(~p): ~p~n", [router, Reason]);
-    %%     {ok, {_Address,_Port, Packet}}->
-    %%         PacketD = graph_utils:decode_packet(Packet),
-    %%         ?INFO("Metric Data ~p~n", [PacketD])
-    %%         %db_worker:store(PacketD)
-    %% end,
 
 handle_info(_Info, State) ->
     {noreply, State}.
