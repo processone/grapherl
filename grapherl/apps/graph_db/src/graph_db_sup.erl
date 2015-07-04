@@ -145,7 +145,7 @@ init([]) ->
     %% router for handling incoming metric data points
     RouterSupSpec =[?SIMPLE_SUP(?ROUTER_WORKER_SUP, router_worker)
                    ,?MANAGER_CHILD(router_manager, [[{ports, Ports}]])
-                   ,?MANAGER_CHILD(msg_queue_processor, [[{ports, Ports}]])
+                   %,?MANAGER_CHILD(msg_queue_processor, [[{ports, Ports}]])
                    ],
 
     %% poolboy initalization for db worker processes
@@ -155,11 +155,18 @@ init([]) ->
 
     ?INFO("Evironment starting ~p ~p ~p.~n", [DbMod, CacheMod, Size]),
 
-    PoolArgs          = [{name, {local, ?DB_POOL}}, {worker_module, db_worker},
-                         {size, Size}, {max_overflow, Size*2}],
+
+    PoolArgs          = [{name, {local, ?DB_POOL}}
+                        ,{worker_module, db_worker}
+                        ,{size, Size}
+                        ,{strategy, fifo}
+                        ,{max_overflow, Size*2}],
+
     DbWorkerSpecs     = poolboy:child_spec(?DB_POOL, PoolArgs,
-                                           [{db_mod, DbMod },
-                                            {cache_mod, CacheMod}]),
+                                           [{db_mod, DbMod }
+                                           ,{cache_mod, CacheMod}
+                                           ,{ports, Ports}
+                                           ]),
 
     DataServerSpec    = ?MANAGER_CHILD(db_manager, [[{db_mod, DbMod}, {cache_mod, CacheMod}]]),
     DbManagerSpec     = ?MANAGER_CHILD(graph_db_server, []),

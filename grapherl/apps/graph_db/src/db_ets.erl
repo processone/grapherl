@@ -5,10 +5,12 @@
         ,open_db/2
         ,close_db/1
         ,delete_db/1
+        ,read/2
         ,read_all/1
-        ,insert/2
-        ,insert_many/2
-        ,clear_db/1
+        ,insert/3
+        ,insert_many/3
+        ,delete_many/3
+        ,clear_client/2
         ]).
 
 -include_lib("graph_db_records.hrl").
@@ -49,36 +51,70 @@ delete_db(MetricName) when is_atom(MetricName) ->
     {ok, success}.
 
 
-%% read all data points from db
-read_all(MetricName) when is_atom(MetricName) ->
-    MetricPoints     = ets:match(MetricName, '$1'),
+% read all points from given client.
+read(MetricName, Cn) when is_atom(MetricName) ->
+    MetricPoints     = ets:match(MetricName, {{Cn, '$1'}, '$2'}),
     {ok, DataPoints} = unwrap_points(MetricPoints, []),
     {ok, DataPoints}.
 
 
+%% read all data points from metric cache
+%% returns [{Client1, [{k1,v1}, {k2,v2}, ...]}, {Client2, [{k1,v1}, ...]}, ...]
+read_all(MetricName) when is_atom(MetricName) ->
+    MetricPoints     = ets:match(MetricName, {'$1', '$2'}),
+    {ok, DataPoints} = group_points(MetricPoints, []),
+    {ok, DataPoints}.
+
+
 %% insert data point into db
-insert(MetricName, DataPoint) when is_atom(MetricName) ->
-    true = ets:insert(MetricName, DataPoint),
+insert(MetricName, Client, {Key, Val}) when is_atom(MetricName) ->
+    true = ets_insert(MetricName, {{Client, Key}, Val}),
     {ok, success}.
 
 
 %% insert multiple data points
-insert_many(MetricName, DataPoints) ->
-    insert(MetricName, DataPoints).
+%% DataPoints: [{K1,V1}, {K2,V2} ...]
+insert_many(MetricName, Client, DataPoints) ->
+    {ok, Points} = insert_many0(Client, DataPoints, []),
+    true         = ets_insert(MetricName, Points),
+    {ok, success}.
+
+insert_many0(_Client, [], Acc) ->
+    {ok, lists:reverse(Acc)};
+insert_many0(Client, [{Key,Val} | Rest], Acc) ->
+    insert_many(Client, Rest, [{{Client, Key}, Val} | Acc]).
 
 
+% TODO implement this (just to complete the behaviours)
+delete_many(_MetricName, _Client, _Points) ->
+    {ok, success}.
 
-%% delete all data points
-clear_db(MetricName) when is_atom(MetricName) ->
-    true = ets:delete_all_objects(MetricName),
+%% delete all data points for a client
+clear_client(MetricName, Client) when is_atom(MetricName) ->
+    true = ets:match_delete(MetricName, {{Client, '$1'}, '$2'}),
     {ok, success}.
 
 
 %% ----------------------------------------------------------------------------
 %% Internal Functions
 %% ----------------------------------------------------------------------------
+group_points([], Acc) ->
+    {ok, Acc};
+group_points([[{Cn, Key}, Val] | Rest], Acc) ->
+    case lists:keyfind(Cn, 1, Acc) of
+        false ->
+            group_points(Rest, [{Cn, [{Key, Val}]} | Acc]);
+        {Cn, Data} ->
+            group_points(Rest, lists:keystore(Cn, 1, Acc,
+                                              {Cn, lists:reverse([{Key, Val} | Data])}))
+    end.
+
+
+ets_insert(Tab, Points) ->
+    ets:insert(Tab, Points).
+
 
 unwrap_points([], Acc) ->
     {ok, lists:reverse(Acc)};
-unwrap_points([[DataPoint] | Rest], Acc) ->
-    unwrap_points(Rest, [DataPoint | Acc]).
+unwrap_points([[K,V] | Rest], Acc) ->
+    unwrap_points(Rest, [{K,V} | Acc]).

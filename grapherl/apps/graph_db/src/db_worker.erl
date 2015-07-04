@@ -1,14 +1,16 @@
 -module(db_worker).
-
-
 -behaviour(gen_server).
 
 %% Api functions
--export([start_link/1,
-         store/1,
-         retrive/1,
-         retrive/2,
-         dump_data/1]).
+-export([start_link/1
+        %,store/2
+        ,direct_store/1
+        ,retrive/1
+        ,retrive/2
+        ,dump_data/1
+        ,store_batch/3
+        ,prepare_batch/2
+        ]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -25,12 +27,11 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
-
-%% store data point in cache db
-store(Data) ->
+%% store data point in metric cache
+direct_store(Data) ->
     poolboy:transaction(?DB_POOL,
                         fun(Worker) ->
-                                gen_server:cast(Worker, {store, Data})
+                                gen_server:cast(Worker, {direct_store, Data})
                         end).
 
 %% get data points for Metric from cache and databse.
@@ -79,11 +80,19 @@ start_link(Args) ->
 init([Args]) ->
     ?INFO("~p starting with args: ~p ~n", [?MODULE, Args]),
 
-    case graph_utils:get_args(Args, [db_mod, cache_mod]) of
-        {ok, [DbMod, CacheMod]} ->
+    case graph_utils:get_args(Args, [db_mod, cache_mod, ports]) of
+        {ok, [DbMod, CacheMod, Ports]} ->
             %% garbage collect after 100 sec
-            {ok, Tref} = timer:send_interval(100000, {gc}),
-            {ok, #{db_mod => DbMod, cache_mod => CacheMod, id => self(), tref => Tref}};
+            %%{ok, _Tref2} = timer:send_interval(1000, {process_queue}),
+            {ok, Block} = application:get_env(graph_db, msg_queue_block),
+            {ok, #{db_mod      => DbMod
+                  ,cache_mod   => CacheMod
+                  ,id          => self()
+                  ,block_size  => Block
+                  ,ports       => Ports
+                  ,cache       => []
+                  ,batch       => []
+                  }, 0};
 
         _ ->
             ?ERROR("ERROR(~p): no UDP socket found.~n", [?MODULE]),
@@ -104,16 +113,14 @@ init([Args]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({read_metric, {Mn, Cn}, Granularity}, _From, #{db_mod := Db, cache_mod := Cache} = State) ->
+handle_call({read_metric, {_Mn, _Cn}, _Granularity}, _From, #{db_mod := _Db, cache_mod := _Cache} = State) ->
     %% TODO read in chunks and keep sending the data.
-    {ok, CacheFd, DbFd}  = db_manager:get_metric_fd(Mn, Cn, Granularity),
-    {ok, CacheData}      = Cache:read_all(CacheFd),
-    {ok, DbData}         = Db:read_all(DbFd),
-    {reply, {CacheData ,DbData}, State};
+    {reply, ok, State};
 
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -126,18 +133,28 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 %% store data from message queue in the respective metric cache tables
-handle_cast({store, Data}, #{cache_mod := Cache} = State) ->
-    {ok, Batch}  = prepare_batch(Data, []),
-    {ok, _}      = store_batch(Batch, Cache),
-    {noreply, State};
+handle_cast({direct_store, Packet}, #{cache_mod := CacheMod, cache := Cache} = State) ->
+    case binary:split(Packet, [<<"/">>, <<":">>], [global]) of
+        [Cn, Mn, Mt, Key, Val] ->
+            case db_manager:get_metric_fd({Mn, Cn, Mt}) of
+                {ok, CacheFd, _} ->
+                    {ok, _} = CacheMod:insert(CacheFd, Cn, {Key, Val}),
+                    {noreply, State};
+                _ ->
+                    {noreply, State#{cache => [ [{Mn,Cn,Mt}, {Key,Val}]  | Cache] }, 500}
+            end;
+
+        _ ->
+            false
+    end;
 
 %% dump metric cache to disk
-handle_cast({dump_to_disk, {Mn, Cn}}, #{db_mod := Db, cache_mod := Cache} = State) ->
-    {ok, CacheFd, DbFd}  = db_manager:get_metric_fd(Mn, Cn),
-    {ok, Data}           = Cache:read_all(CacheFd),
+handle_cast({dump_to_disk, {Mn, Cn, Mt}}, #{db_mod := Db, cache_mod := Cache} = State) ->
+    {ok, CacheFd, DbFd}  = db_manager:get_metric_fd({Mn, Cn, Mt}),
+    {ok, Data}           = Cache:read(CacheFd, Cn),
     io:format("~n[+] Writing cache to disk. (Size ~p) ~n", [erlang:length(Data)]),
-    {ok, success}        = Db:insert_many(DbFd, Data),
-    {ok, success}        = Cache:clear_db(CacheFd),
+    {ok, success}        = Db:insert_many(DbFd, Cn, Data),
+    {ok, success}        = Cache:clear_client(CacheFd, Cn),
     {noreply, State};
 
 handle_cast(_Msg, State) ->
@@ -153,10 +170,13 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-%% garbage collect process data
-handle_info({gc}, State) ->
+handle_info(timeout, #{cache_mod := CacheMod, cache := Data,
+                       batch := PrevBatch} = State) ->
+    {ok, Batch}    = prepare_batch(Data, []),
+    {ok, BatchNew} = store_batch(none, lists:flatten([Batch, PrevBatch]), CacheMod),
     db_utils:gc(),
-    {noreply, State};
+    {noreply, State#{cache => [], batch => BatchNew}, 5000};
+
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -171,8 +191,7 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, #{tref := Tref} = _State) ->
-    timer:cancel(Tref),
+terminate(_Reason, _State) ->
     ok.
 
 %%--------------------------------------------------------------------
@@ -189,20 +208,58 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-store_batch([], _) ->
-    {ok, success};
-store_batch([{{Mn,Cn}, Data} | Rest], Cache) ->
-    {ok, CacheFd, _} = db_manager:get_metric_fd(Mn, Cn),
-    {ok, _}          = Cache:insert_many(CacheFd, Data),
-    store_batch(Rest, Cache).
+
+%% store_from_queue(Tab, CacheMod, BlockSize) ->
+%%     %io:format("[+] storing from queue ~p~n", [self()]),
+%%     case ets:match(Tab, {self(), '$2', '$3'}, BlockSize) of
+%%         '$end_of_table' ->
+%%             {ok, no_objects};
+
+%%         %% {[ [{Mn, Cn, Mt}, _] ], _} ->
+%%         {Points, _} ->
+
+%%             %% optimistic delete
+%%             %io:format("[+] optimistic delete points ~p, ~p~n", [self(), length(Points)]),
+%%             lists:map(
+%%               fun([Mid, Mp]) ->
+%%                       ets:delete_object(Tab, {self(), Mid, Mp})
+%%               end, Points),
+%%             %io:format("[+] preparing batch points ~p~n", [self()]),
+%%             {ok, Batch} = prepare_batch(Points, []),
+%%             io:format("[+] storing batch points ~p~n", [self()]),
+%%             store_batch(Tab, Batch, CacheMod),
+%%             {ok, cached}
+%%     end.
+
+
+store_batch(_Tab, [], _) ->
+    {ok, []};
+store_batch(Tab, [{{Mn, Cn, Mt}, Data} | Rest], Cache) ->
+    try
+        {ok, CacheFd, _} = db_manager:get_metric_fd({Mn, Cn, Mt}),
+        {ok, _}          = Cache:insert_many(CacheFd, Cn, Data),
+        store_batch(Tab, Rest, Cache)
+    catch
+        _:_ ->
+            io:format("[-] error occured in db_worker:store_batch ~p~n", [erlang:get_stacktrace()]),
+            {ok, Rest}
+    end.
 
 
 prepare_batch([], Acc) ->
-    {ok, Acc};
-prepare_batch([{{Mn, Cn}, KeyVal} | Rest], Acc) ->
-    case lists:keyfind({Mn,Cn}, 1, Acc) of
+    {ok, lists:reverse(Acc)};
+prepare_batch([[{Mn, Cn, Mt}, {Key, Val}] | Rest], Acc) ->
+    case lists:keyfind({Mn, Cn, Mt}, 1, Acc) of
         false ->
-            prepare_batch(Rest, [{{Mn,Cn}, [KeyVal]} | Acc]);
-        {{Mn,Cn}, Data} ->
-            prepare_batch(Rest, lists:keystore({Mn,Cn}, 1, Acc, {{Mn,Cn}, [KeyVal | Data]}))
+            prepare_batch(Rest, [{{Mn, Cn, Mt}, [{Key, Val}]} | Acc]);
+        {{Mn, Cn, Mt}, Data} ->
+            prepare_batch(Rest, lists:keystore({Mn, Cn, Mt}, 1, Acc,
+                                               {{Mn, Cn, Mt}, [{Key, Val} | Data]}))
     end.
+
+%% mark_data(Worker, Tab, Data) ->
+%%     lists:map(
+%%       fun([{Mn,Cn,Mt}, {Key,Val}]) ->
+%%               ets:insert(Tab, {Worker, {Mn,Cn,Mt}, {Key,Val}}),
+%%               ets:delete_object(Tab, {{Mn,Cn,Mt}, {Key,Val}})
+%%       end, Data).

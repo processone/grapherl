@@ -27,4 +27,4 @@
                                               Restart, 60000, Type, [Mod]}).
 
 -record(struct, {data=[]}).
--record(packet, {mn, cn, mp}).
+-record(packet, {mn, cn, mt, mp}).

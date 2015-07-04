@@ -5,11 +5,13 @@
         ,open_db/2
         ,close_db/1
         ,delete_db/1
+        ,read/2
         ,read_all/1
-        ,insert/2
-        ,insert_many/2
-        ,delete_many/2
-        ,clear_db/1]).
+        ,insert/3
+        ,insert_many/3
+        ,delete_many/3
+        ,clear_client/2
+         ]).
 
 -include_lib("graph_db_records.hrl").
 
@@ -43,32 +45,48 @@ delete_db(#{dir := MetricPath} = _MetricRef) ->
 
 
 %% read all data points from db
-read_all(#{ref := Ref} = _MetricRef) ->
-    Data = lists:reverse(eleveldb:fold(Ref, fun({K, V}, Acc) -> [{K, V} | Acc] end, [], [])),
+read(#{ref := Ref} = _MetricRef, Client) ->
+    Data = lists:reverse(eleveldb:fold(Ref,
+                                       fun({Term, V}, Acc) ->
+                                               case binary:split(Term, [<<",">>]) of
+                                                   [Client, K] -> [{K, V} | Acc];
+                                                   _           -> Acc
+                                               end
+                                       end, [], [])),
     {ok, Data}.
 
 
-%% insert data point into db
-insert(#{ref := Ref}, {Key, Value}) ->
-    ok = eleveldb:put(Ref, Key, Value, []),
+%% TODO implement this (but this is not used anywhere just to be complient
+%% the api)
+read_all(_) ->
+    ok.
+
+
+%% insert data point from a given client into db 
+insert(#{ref := Ref}, Client, {Key, Value}) ->
+    ok = eleveldb:put(Ref, construct_key(Client, Key), Value, []),
     {ok, success}.
 
 
-%% insert multiple data points
-insert_many(#{ref := Ref}, Points) ->
-    ok = eleveldb:write(Ref, [{put, K, V} || {K,V} <- Points], []),
+%% insert multiple data points from client into db
+insert_many(#{ref := Ref}, Client, Points) ->
+    ok = eleveldb:write(Ref, [{put, construct_key(Client, K), V} 
+                              || {K,V} <- Points], []),
     {ok, success}.
 
-%% insert multiple data points
-delete_many(#{ref := Ref}, Points) ->
-    ok = eleveldb:write(Ref, [{delete, K} || {K, _V} <- Points], []),
+
+%% delete multiple data points for a client
+delete_many(#{ref := Ref}, Client, Points) ->
+    ok = eleveldb:write(Ref, [{delete, construct_key(Client, K)} ||
+                                 {K, _V} <- Points], []),
     {ok, success}.
 
-%% delete all data points
-clear_db(#{ref := Ref}) ->
+
+%% delete all data points for a given client
+clear_client(#{ref := Ref}, Client) ->
     Operation = eleveldb:fold_keys(Ref,
                                    fun(K, Acc) ->
-                                           [{delete, K} | Acc]
+                                           [{delete, construct_key(Client, K)} | Acc]
                                    end, [], []),
     ok = eleveldb:write(Ref, Operation, []),
     {ok, success}.
@@ -77,4 +95,5 @@ clear_db(#{ref := Ref}) ->
 %% ----------------------------------------------------------------------------
 %% Internal Functions
 %% ----------------------------------------------------------------------------
-
+construct_key(Client, Key) ->
+    <<Client/binary, ",", Key/binary>>.

@@ -20,7 +20,7 @@
 
 %% will store a list of sockets that are being using to receive metric from
 %% clients
--record(state, {sockets=[], type, attempts}).
+-record(state, {sockets=[], type, attempts, counter = 0}).
 
 %%%===================================================================
 %%% API functions

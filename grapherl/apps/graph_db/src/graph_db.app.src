@@ -15,15 +15,17 @@
    ]}
  ,{env,
    [{num_routers, 3}                            % this config will handle around 1 million packets per minute
-   ,{num_db_workers, 10}                        % number of db workers for storing and retriving data 
+   ,{num_db_workers, 3}                         % number of db workers for storing and retriving data. It is
+                                                % advisible to have a minimum of 3 workers else it degrades
+                                                % performance
    ,{num_servers, 10}
    ,{cache_mod, db_ets}                         % name of module to be used for cache storage
    ,{db_mod, db_levelDB}                        % name of module to be used for disk storage
    ,{msg_queue_block, 5000}                     % change carefully, incrementing might degrade performance.
-   ,{storage_dir, <<"/var/db/grapherl/">>}      % storage location on disk. NOTE: based on sotrage dir user might
+   ,{storage_dir, <<"/var/db/grapherl/">>}        % storage location on disk. NOTE: based on sotrage dir user might
                                                 % need to run grapherl with root permission
-   ,{cache_to_disk_timeout, 600000}             % timeout (in milliseconds) after which metric cache is dumped to disk
-   ,{db_daemon_timeout, 600000}                 % timeout after which data on disk is check for compression and purging
+   ,{cache_to_disk_timeout, 60000}              % timeout (in milliseconds) after which metric cache is dumped to disk
+   ,{db_daemon_timeout, 60000}                  % timeout after which data on disk is check for compression and purging
    ]}
  ,{modules, []}
  ]}.

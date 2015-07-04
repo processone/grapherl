@@ -151,20 +151,20 @@ code_change(_OldVsn, State, _Extra) ->
 
 purge_data(DbMod, DbDir, MetricData) ->
     %purge_data(DbMod, DbDir, MetricData, 0),
-    PurgeData = fun({Key, Data}) ->
+    PurgeData = fun({{Mn, Cn}, Data}) ->
                         {{db_fd, live}, DbFd} = lists:keyfind({db_fd, live}, 1, Data),
-                        aggregate_data(DbDir, DbMod, {Key, Data}, {DbFd, live})
+                        {metric_type, Mt}     = lists:keyfind(metric_type, 1, Data),
+                        aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, Data}, {DbFd, live})
                 end,
     graph_utils:run_threads(8, MetricData, PurgeData),
     db_utils:gc().
 
 
-aggregate_data(DbDir, DbMod, {{Mid,Cn}, MetricData}, {DbFd, CurrType}) ->
+aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, MetricData}, {DbFd, CurrType}) ->
     %% optimize granularity calculation
     {name, BaseName} = lists:keyfind(name, 1, MetricData),
-
-    {ok, KeyVal}     = DbMod:read_all(DbFd),
-    io:format("~n[+] Compressing ~p (length ~p)~n", [BaseName, erlang:length(KeyVal)]),
+    {ok, KeyVal}     = DbMod:read(DbFd, Cn),
+    io:format("~n[+] Compressing ~p (length: ~p)~n", [BaseName, erlang:length(KeyVal)]),
 
     %% TODO optimize this
     case should_be_purged(KeyVal, CurrType) of
@@ -173,24 +173,25 @@ aggregate_data(DbDir, DbMod, {{Mid,Cn}, MetricData}, {DbFd, CurrType}) ->
         {Purge, {Type, Step}} ->
             MergeFun  = {graph_utils, mean},
             NextType  = db_utils:get_next_type(Type),
-            DbFdNext  = get_next_db_fd({Mid,Cn}, NextType, MetricData),
+            DbFdNext  = get_next_db_fd({Mn, Cn, Mt}, NextType, MetricData),
             ok        = merge_points(KeyVal, {Type, Step}, #{db_fd      => DbFd
                                                             ,db_fd_next => DbFdNext
                                                             ,db_mod     => DbMod
                                                             ,merge_fun  => MergeFun
+                                                            ,client     => Cn
                                                             ,purge      => Purge}),
-            aggregate_data(DbDir, DbMod, {{Mid,Cn}, MetricData},
+            aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, MetricData},
                            {DbFdNext, NextType})
     end.
 
 
 %% get the next db object based on granularity
-get_next_db_fd({Mid,Cn}, NextType, MetricData) ->
+get_next_db_fd({Mid, Cn, Mt}, NextType, MetricData) ->
     case lists:keyfind({db_fd, NextType}, 1, MetricData) of
         {{db_fd, NextType}, NextFd} ->
             NextFd;
         _ ->
-            {ok, _, NextFd}  = db_manager:get_metric_fd(Mid, Cn, NextType),
+            {ok, _, NextFd}  = db_manager:get_metric_fd({Mid, Cn, Mt}, NextType),
             NextFd
     end.
 
@@ -214,6 +215,7 @@ merge_points([{K,V} | Rest], {_Base, {Type, Interval}}, Args,
       ,db_fd      := DbFd
       ,db_mod     := DbMod
       ,merge_fun  := {Module, Fun}
+      ,client     := Client
       ,purge      := Purge} = Args,
 
     NewVal    = erlang:apply(Module, Fun, [AccV]),
@@ -222,8 +224,8 @@ merge_points([{K,V} | Rest], {_Base, {Type, Interval}}, Args,
                     graph_utils:binary_to_realNumber(
                       graph_utils:mean(AccK)))),
 
-    {ok, success} = DbMod:insert(DbFdNext, {AvgKey, NewVal}),
-    if Purge =:= true -> {ok, success} = DbMod:delete_many(DbFd, DelPoints); true -> ok end,
+    {ok, success} = DbMod:insert(DbFdNext, Client, {AvgKey, NewVal}),
+    if Purge =:= true -> {ok, success} = DbMod:delete_many(DbFd, Client, DelPoints); true -> ok end,
 
     Interval0 = db_utils:get_interval(Type),
     Diff      = {Type, Interval0},

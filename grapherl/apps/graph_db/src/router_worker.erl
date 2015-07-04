@@ -51,7 +51,7 @@ init([Args]) ->
     ?INFO("Starting ~p with args: ~p ~n", [?MODULE, Args]),
     case graph_utils:get_args(Args, [socket, msg_queue]) of
         {ok, [Socket, MsgQ]} ->
-            {ok, #{socket => Socket, msg_queue => MsgQ}, 0};
+            {ok, #{socket => Socket, msg_queue => MsgQ, counter => 0}, 0};
         _ ->
             ?ERROR("ERROR(~p): no UDP socket found.~n", [?MODULE]),
             {stop, no_socket}
@@ -98,19 +98,21 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-%% receives data in json format: 
-%% '{"mp": {"ts": "value"}, "mid": {"mn": "cpu_usage", "cn": "www.server01.com"}}'
-%%
-handle_info(timeout, #{socket := Socket, msg_queue := MsgQ} = State) ->
+%% decode  <<"www.server01.com/cpu_usage:g/key:value">>
+%% Cn  : Client Name eg. www.server01.com
+%% Mn  : Metric Name eg. cpu_usage
+%% Mt  : metric type eg. g (gaguge)
+%% Key : Timestamp
+%% Val : Value at given timestamp
+handle_info(timeout, #{socket := Socket} = State) ->
     case procket:recvfrom(Socket, 16#FFFF) of
         {error, eagain} ->
             {noreply, State, 2};
 
         %% store received data points into message queue
-        {ok, Buf} ->
-            %?INFO("Metric Data ~p~n", [Buf]),
-            #packet{mn=Mn, cn=Cn, mp={Key,Val}} = graph_utils:decode_packet(Buf),
-            ets:insert(MsgQ, {{Mn,Cn}, {Key,Val}}),
+        {ok, Packet} ->
+            %%?INFO("Metric Data ~p: ~p~n", [self(), Ctr]),
+            db_worker:direct_store(Packet),
             {noreply, State, 0};
 
         Other ->

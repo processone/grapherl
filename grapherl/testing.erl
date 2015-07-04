@@ -5,10 +5,12 @@
         ]).
 
 
-data(Client, Ts) ->
+data(Name, Ts) ->
     Val  = erlang:integer_to_list(random:uniform(100)),
     TsS  = erlang:integer_to_list(Ts),
-    Data = "{\"mid\": {\"cn\": \"" ++ Client ++ "\", \"mn\": \"cpu_usage\"}, \"mp\": {\"" ++ TsS ++ "\":" ++ Val ++ "}}",
+    %Data = Client ++ "/cpu_usage:g/" ++ TsS ++ ":" ++ Val, 
+    Data = "www.server01.com/" ++ Name ++ ":g/" ++ TsS ++ ":" ++ Val, 
+    %Data = "{\"mid\": {\"cn\": \"" ++ Client ++ "\", \"mn\": \"cpu_usage\"}, \"mp\": {\"" ++ TsS ++ "\":" ++ Val ++ "}}",
     Data.
 
 
@@ -18,6 +20,7 @@ client(_Name, Socket, 0, _Ts) ->
 client(Name, Socket, Num, Ts) ->
     Data = data(Name, Ts),
     gen_udp:send(Socket, {127,0,0,1}, 11111, Data),
+    ets:insert(testrouter, [{k,v}]),
     timer:sleep(20),
     client(Name, Socket, Num -1, Ts + 1).
 
@@ -33,7 +36,8 @@ spawn_clients(Num, Port, Packets) ->
     erlang:spawn(
       fun() ->
               {ok, Socket} = gen_udp:open(Port),
-              Name = "www.server" ++ erlang:integer_to_list(Port) ++ ".com",
+              %Name = "www.server" ++ erlang:integer_to_list(Port) ++ ".com",
+              Name = "cpu_usage_" ++ erlang:integer_to_list(Port),
               TS   = unix_time(),
               client(Name, Socket, Packets, TS)
       end),

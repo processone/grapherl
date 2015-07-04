@@ -3,7 +3,7 @@
 -export([get_args/2
         ,open_port/2
         ,get_socket/2
-        ,decode_packet/1
+        ,to_binary/1
         ,mean/1
         ,binary_to_realNumber/1
         ,run_threads/3
@@ -49,18 +49,6 @@ get_socket(Type, [Sock | L]) ->
             get_socket(Type, L)
     end.
 
-%% decode joson
-%% Mid : MetricId 
-%% Mn  : Metric Name
-%% Cn  : Client Name eg. www.server01.com
-%% Mp  : Metric Point eg [{timestamp, value}]
-decode_packet(Packet) when is_binary(Packet) ->
-    PacketD = mochijson2:decode(Packet),
-    {ok, [Mid, Mp]}  = get_args(PacketD#struct.data, [<<"mid">>, <<"mp">>]),
-    {ok, [Mn, Cn]}   = get_args(Mid#struct.data, [<<"mn">>, <<"cn">>]),
-    [{Key, Value}]   = Mp#struct.data,
-    BinVal           = to_binary(Value),
-    #packet{mn=Mn, cn=Cn, mp={Key, BinVal}}.
 
 to_binary(Val) when is_binary(Val) ->
     Val;
