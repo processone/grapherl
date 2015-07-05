@@ -141,7 +141,8 @@ init([]) ->
     ok = application:ensure_started(lager),
     ok = application:ensure_started(poolboy),
     
-    Ports = [?R_PORT],
+    %% Ports = [?R_PORT],
+    {ok, Ports}   = application:get_env(graph_db, ports),
     %% router for handling incoming metric data points
     RouterSupSpec =[?SIMPLE_SUP(?ROUTER_WORKER_SUP, router_worker)
                    ,?MANAGER_CHILD(router_manager, [[{ports, Ports}]])
