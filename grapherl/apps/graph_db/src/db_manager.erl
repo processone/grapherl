@@ -7,6 +7,7 @@
         ,get_metric_fd/1
         ,get_metric_fd/2
         ,get_metric_maps/0
+        ,pre_process_metric/1
         ]).
 
 %% gen_server callbacks
@@ -354,6 +355,39 @@ fetch_fd({Mn, _}) ->
 
 store_fd({Key, Val}) ->
     ets:insert(?MODULE, {Key, Val}).
+
+
+
+%% pre_process_metric/1 : input is a comma seperated file where each line
+%% contains metrics name (eg active_users_online) and the metric type. Eg.
+%% === FILE STARTS === 
+%% 
+%% active_users_online, p
+%% cpu_usage, p
+%% concurrent_connections, p
+%% 
+%% === FILE ENDS ===
+%%
+%% It is advisable to NOT have any space in the metric name.
+%% the file name should be absolute path
+pre_process_metric(FilePath) ->
+    {ok, Fd} = file:open(FilePath, [read]),
+    read_file(Fd),
+    file:close(Fd).
+
+
+read_file(Fd) ->
+    case file:read_line(Fd) of
+        {ok, Data} ->
+            [RMn, RMt] = string:tokens(string:strip(Data, both, $\n ), ","),
+            Mn = erlang:list_to_binary(string:strip(RMn)),
+            Mt = erlang:list_to_binary(string:strip(RMt)),
+            io:format("starting metric ~p ~p~n", [Mn, Mt]),
+            db_manager:get_metric_fd({Mn, <<"metric">>, Mt}),
+            read_file(Fd);
+        eof ->
+            ok
+    end.
 
 %% testing
 

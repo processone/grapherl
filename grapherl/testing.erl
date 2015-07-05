@@ -22,7 +22,7 @@ client(Name, Socket, Num, Ts) ->
     gen_udp:send(Socket, {127,0,0,1}, 11111, Data),
     ets:insert(testrouter, [{k,v}]),
     timer:sleep(20),
-    client(Name, Socket, Num -1, Ts + 1).
+    client(Name, Socket, Num -1, Ts + 5).
 
 
 
