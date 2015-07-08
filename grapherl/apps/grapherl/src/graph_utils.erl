@@ -5,6 +5,8 @@
         ,get_socket/2
         ,to_binary/1
         ,mean/1
+        ,gauge/1
+        ,counter/1
         ,binary_to_realNumber/1
         ,run_threads/3
         ]).
@@ -61,7 +63,7 @@ to_binary(Val) when is_list(Val) ->
 to_binary(Val) when is_atom(Val) ->
     erlang:atom_to_binary(Val, utf8).
 
-
+%%
 mean(List) ->
     mean(List, 0, 0).
 
@@ -73,9 +75,47 @@ mean([E | Rest], Count, Acc) when is_binary(E) ->
 mean([E | Rest], Count, Acc) when is_integer(E) orelse is_float(E) ->
     mean(Rest, Count + 1, E + Acc).
 
+
+%% the list is expected to contains binary elements
+gauge(List) ->
+    gauge(List, 0, 0, 0).
+
+gauge([], 0, _, _) -> 0;
+gauge([], Count, _Prev, Acc) ->
+    float_to_binary(Acc/Count * 1.0);
+gauge([E | Rest], Count, Prev, Acc) when is_binary(E) ->
+    gauge([process_gauge(E, Prev) | Rest], Count, Prev, Acc);
+gauge([E | Rest], Count, _Prev, Acc) when is_integer(E) orelse is_float(E) ->
+    gauge(Rest, Count + 1, E, E + Acc).
+
+
+process_gauge(Val, Prev) ->
+    ValR = binary_to_realNumber(Val),
+    case Val of 
+        <<"+", _R/binary>> -> Prev + ValR; 
+        <<"-", _R/binary>> -> Prev + ValR;
+        _ -> ValR
+    end.
+
+
+%%
+counter(List) ->
+    counter(List, 0).
+
+counter([], 0)   -> 0;
+counter([], Acc) -> realNumber_to_binary(Acc);
+counter([E | Rest], Acc) when is_binary(E) ->
+    counter([binary_to_realNumber(E) | Rest], Acc);
+counter([E | Rest], Acc) when is_integer(E) orelse is_float(E) ->
+    counter(Rest, E + Acc).
+
+
+%%
 binary_to_realNumber(Num) ->
     try binary_to_integer(Num) catch _:_ -> binary_to_float(Num) end.
 
+realNumber_to_binary(Num) ->
+    try float_to_binary(Num) catch _:_ -> integer_to_binary(Num) end.
 
 %% N    : numbers of thread
 %% Args : [Arg1, Arg2 ...]

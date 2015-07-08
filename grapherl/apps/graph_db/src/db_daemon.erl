@@ -162,8 +162,9 @@ purge_data(DbMod, DbDir, MetricData) ->
 
 aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, MetricData}, {DbFd, CurrType}) ->
     %% optimize granularity calculation
-    {name, BaseName} = lists:keyfind(name, 1, MetricData),
-    {ok, KeyVal}     = DbMod:read(DbFd, Cn),
+    {name, BaseName}    = lists:keyfind(name, 1, MetricData),
+    %{metric_type, Type} = lists:keyfind(metric_type, 1, MetricData),
+    {ok, KeyVal}        = DbMod:read(DbFd, Cn),
     io:format("~n[+] Compressing ~p (length: ~p)~n", [BaseName, erlang:length(KeyVal)]),
 
     %% TODO optimize this
@@ -171,19 +172,26 @@ aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, MetricData}, {DbFd, CurrType}) ->
         {false, stop} ->
             ok;
         {Purge, {Type, Step}} ->
-            MergeFun  = {graph_utils, mean},
+            MergeFun  = get_merge_fun(Mt), % {graph_utils, mean},
             NextType  = db_utils:get_next_type(Type),
             DbFdNext  = get_next_db_fd({Mn, Cn, Mt}, NextType, MetricData),
-            ok        = merge_points(KeyVal, {Type, Step}, #{db_fd      => DbFd
-                                                            ,db_fd_next => DbFdNext
-                                                            ,db_mod     => DbMod
-                                                            ,merge_fun  => MergeFun
-                                                            ,client     => Cn
-                                                            ,purge      => Purge}),
+            ok        = merge_points(KeyVal, {Type, Step}, #{db_fd        => DbFd
+                                                            ,db_fd_next   => DbFdNext
+                                                            ,db_mod       => DbMod
+                                                            ,metric_type  => Type
+                                                            ,merge_fun    => MergeFun
+                                                            ,client       => Cn
+                                                            ,purge        => Purge}),
             aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, MetricData},
                            {DbFdNext, NextType})
     end.
 
+get_merge_fun(<<"g">>) ->
+    {graph_utils, gauge};
+get_merge_fun(<<"c">>) ->
+    {graph_utils, counter};
+get_merge_fun(_) ->
+    {graph_utils, mean}.
 
 %% get the next db object based on granularity
 get_next_db_fd({Mid, Cn, Mt}, NextType, MetricData) ->
