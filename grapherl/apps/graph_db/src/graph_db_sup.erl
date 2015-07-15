@@ -164,15 +164,16 @@ init([]) ->
                         ,{max_overflow, Size*2}],
 
     DbWorkerSpecs     = poolboy:child_spec(?DB_POOL, PoolArgs,
-                                           [{db_mod, DbMod }
+                                           [{db_mod, DbMod}
                                            ,{cache_mod, CacheMod}
                                            ,{ports, Ports}
                                            ]),
 
     DataServerSpec    = ?MANAGER_CHILD(db_manager, [[{db_mod, DbMod}, {cache_mod, CacheMod}]]),
     DbManagerSpec     = ?MANAGER_CHILD(graph_db_server, []),
+    QueryHandler      = ?MANAGER_CHILD(query_handler, []),
     DbDaemonSpec      = ?MANAGER_CHILD(db_daemon, [[{db_mod, DbMod}]]),
-    DbSupSpec         = [DbManagerSpec, DataServerSpec, DbDaemonSpec],
+    DbSupSpec         = [DbManagerSpec, DataServerSpec, DbDaemonSpec, QueryHandler],
 
 
 

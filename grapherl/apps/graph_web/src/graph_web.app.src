@@ -6,7 +6,10 @@
  ,{applications,
    [kernel
    ,stdlib
+   ,crypto
+   ,sasl
    ,syntax_tools
+   ,cowboy
    ,mochiweb
    ,lager
    ]}

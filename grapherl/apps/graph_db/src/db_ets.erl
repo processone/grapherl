@@ -11,6 +11,7 @@
         ,insert_many/3
         ,delete_many/3
         ,clear_client/2
+        ,get_range/2
         ]).
 
 -include_lib("graph_db_records.hrl").
@@ -27,7 +28,7 @@ init_db(MetricName, Args) when is_binary(MetricName) ->
     init_db(binary_to_atom(MetricName, utf8), Args);
 
 init_db(MetricName, _Args) when is_atom(MetricName) ->
-    ets:new(MetricName, [set, public, named_table,
+    ets:new(MetricName, [public, named_table,
                          ordered_set,
                          {write_concurrency, false},
                          {read_concurrency, false}]),
@@ -93,6 +94,19 @@ delete_many(_MetricName, _Client, _Points) ->
 clear_client(MetricName, Client) when is_atom(MetricName) ->
     true = ets:match_delete(MetricName, {{Client, '$1'}, '$2'}),
     {ok, success}.
+
+
+get_range(MetricName, {Cn, Start, End}) ->
+    Data = ets:foldl(
+             fun(Element, Acc) ->
+                     case Element of
+                         {{Cn, Key}, Val} when Key =< Start andalso Key >= End ->
+                             [{Key, Val} | Acc];
+                         _ ->
+                             Acc
+                     end
+             end, [], MetricName),
+    {ok, Data}.
 
 
 %% ----------------------------------------------------------------------------

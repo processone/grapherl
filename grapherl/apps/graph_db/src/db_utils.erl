@@ -10,6 +10,7 @@
         ,db_days/1
         ,to_metric_name/1
         ,get_metric_name/2
+        ,get_prev_type/1
         ,get_next_type/1
         ,get_interval/1
         ,get_aggregation_size/1
@@ -102,9 +103,16 @@ get_metric_name(_, Name) ->
     db_days(Name).
 
 
-get_next_type(?SEC)  -> min;
-get_next_type(?MIN)  -> hour;
-get_next_type(?HOUR) -> day;
+get_prev_type(?SEC)  -> stop;
+get_prev_type(?MIN)  -> ?SEC;
+get_prev_type(?HOUR) -> ?MIN;
+get_prev_type(?DAY)  -> ?HOUR;
+get_prev_type(_)     -> ?DAY.
+
+
+get_next_type(?SEC)  -> ?MIN;
+get_next_type(?MIN)  -> ?HOUR;
+get_next_type(?HOUR) -> ?DAY;
 get_next_type(?DAY)  -> stop;
 get_next_type(_)     -> stop.
 

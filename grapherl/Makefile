@@ -1,3 +1,6 @@
+CLIENT_PATH := $(wildcard _build/default/rel/grapherl/lib/graph_web-*)
+
+
 all: compile release
 
 compile:
@@ -7,6 +10,11 @@ compile:
 
 release:
 	rebar3 release
+
+client:
+	cd apps/graph_web_client && grunt
+	cp -R apps/graph_web_client/build/* $(CLIENT_PATH)/priv
+
 
 console:
 	_build/default/rel/grapherl/bin/grapherl console

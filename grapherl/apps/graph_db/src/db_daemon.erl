@@ -4,6 +4,8 @@
 
 %% API functions
 -export([start_link/1
+        ,was_compressed/2
+        ,was_purged/2
         ,aggregate_data/4
         ,should_be_purged/2
         ]).
@@ -25,6 +27,20 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+was_compressed({Mn, Cn, Granularity}, {StartR, EndR}) ->
+    get_logs(compressed, {Mn, Cn, Granularity}, {StartR, EndR}).
+    
+was_purged({Mn, Cn, Granularity}, {StartR, EndR}) ->
+    get_logs(purged, {Mn, Cn, Granularity}, {StartR, EndR}).
+
+
+get_logs(Action, {Mn, Cn, Granularity}, {StartR, EndR}) ->
+    case ets:lookup(?MODULE, {Mn, Cn, Granularity, Action}) of
+        []              -> {ok, false};
+        [{_Key, Range}] -> lies_in_range(Range, {StartR, EndR}, {ok, false})
+    end.
+
+
 
 
 %%--------------------------------------------------------------------
@@ -57,6 +73,13 @@ init([Args]) ->
     {ok, Timeout} = application:get_env(graph_db, db_daemon_timeout),
     {ok, DbDir}   = application:get_env(graph_db, storage_dir),
     {ok, [DbMod]} = graph_utils:get_args(Args, [db_mod]),
+
+    Pid = graph_db_sup:ets_sup_pid(),
+    io:format("[+] Starting db_daemon with log cache ets_sup_pid: ~p", [Pid]),
+    ets:new(?MODULE, [set, public, named_table
+                     ,{heir, Pid, none}
+                     ,{write_concurrency, true}
+                     ,{read_concurrency, true}]),
 
     % TODO timeout 0 -> Timeout
     {ok, #{timeout => Timeout, storage_dir => DbDir, db_mod => DbMod}, 0}.
@@ -174,10 +197,13 @@ aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, MetricData}, {DbFd, CurrType}) ->
         {Purge, {Type, Step}} ->
             MergeFun  = get_merge_fun(Mt), % {graph_utils, mean},
             NextType  = db_utils:get_next_type(Type),
+            io:format("[+] compressing ~p to ~p.", [Type, NextType]),
             DbFdNext  = get_next_db_fd({Mn, Cn, Mt}, NextType, MetricData),
             ok        = merge_points(KeyVal, {Type, Step}, #{db_fd        => DbFd
                                                             ,db_fd_next   => DbFdNext
                                                             ,db_mod       => DbMod
+                                                            ,metric_name  => Mn
+                                                            ,client_name  => Cn
                                                             ,metric_type  => Type
                                                             ,merge_fun    => MergeFun
                                                             ,client       => Cn
@@ -222,6 +248,8 @@ merge_points([{K,V} | Rest], {_Base, {Type, Interval}}, Args,
      #{db_fd_next := DbFdNext
       ,db_fd      := DbFd
       ,db_mod     := DbMod
+      ,metric_name:= Mn
+      ,client_name:= Cn
       ,merge_fun  := {Module, Fun}
       ,client     := Client
       ,purge      := Purge} = Args,
@@ -234,6 +262,10 @@ merge_points([{K,V} | Rest], {_Base, {Type, Interval}}, Args,
 
     {ok, success} = DbMod:insert(DbFdNext, Client, {AvgKey, NewVal}),
     if Purge =:= true -> {ok, success} = DbMod:delete_many(DbFd, Client, DelPoints); true -> ok end,
+
+    {End, _}   = lists:min(DelPoints),
+    {Start, _} = lists:max(DelPoints),
+    log_activity(Purge, {Mn, Cn, db_utils:get_next_type(Type), db_utils:get_interval(Type)}, {Start, End}),
 
     Interval0 = db_utils:get_interval(Type),
     Diff      = {Type, Interval0},
@@ -296,4 +328,61 @@ get_granularity(_, _) ->
 %%     Time = db_utils:unix_time(),
 %%     [{integer_to_binary(Time + N), integer_to_binary(crypto:rand_uniform(1000, 9999))} || N <- lists:seq(0, End, Jump)].
 
+
+%%=============================================================================
+%% log db_daemon actions
+%%=============================================================================
+log_activity(Purge, {Mn, Cn, Type, Delta}, {Start, End}) ->
+    Action = if Purge =:= true -> purged; true -> compressed end,
+    case ets:lookup(?MODULE, {Mn, Cn, Type, Action}) of
+        [] -> ets:insert(?MODULE, {{Mn, Cn, Type, Action}, [{Start, End}]});
+        [{_Key, Range}] ->
+            ProcessedRange  = lists:reverse(lists:keysort(1, [{Start, End} | Range])),
+            {ok, RangeNew0} = merge_range(ProcessedRange, Delta, []),
+            {ok, RangeNew}  = force_merge(RangeNew0),
+            ets:insert(?MODULE, {{Mn, Cn, Type, Action}, RangeNew})
+    end.
+
+
+%% merge the given list of invervals
+merge_range([], _Delta, Acc) ->
+    {ok, lists:keysort(1, Acc)};
+merge_range([{K,V}], _Delta, Acc) ->
+    {ok, lists:keysort(1, [{K,V} | Acc])};
+merge_range([{S1, E1}, {S2, E2} | Rest], Delta, Acc) ->
+    Diff = graph_utils:binary_to_realNumber(E1) - graph_utils:binary_to_realNumber(S2),
+    if
+        Diff =< Delta andalso E1 > E2 ->
+            merge_range([{S1, E2} | Rest], Delta, Acc);
+        Diff =< Delta andalso E1 =< E2 ->
+            merge_range([{S1, E1} | Rest], Delta, Acc);
+        true ->
+            merge_range(Rest, Delta, [{S1, E1}, {S2, E2} | Acc])
+    end.
+
+
+%% force merge pretty old entries
+force_merge([{_S1, E1}, {S2, _E2} | Rest] = Range) when erlang:length(Range) > 250 ->
+    force_merge([{S2, E1} | Rest]);
+force_merge(Range) ->
+    {ok, Range}.
+
+
+%% if the given interval lies the range
+lies_in_range([], _, Ret) ->
+    Ret;
+lies_in_range([{Start, End} | Rest], {StartR, EndR}, Ret) ->
+    if
+        StartR =< Start andalso (EndR =< End orelse EndR >= End) ->
+            %io:format("cond 2~n"),
+            {ok, true};
+
+        StartR >= Start andalso EndR < Start ->
+            %io:format("cond 4~n"),
+            lies_in_range(Rest, {StartR, EndR}, {ok, partial});
+
+        true ->
+            %io:format("cond 6~n"),
+            lies_in_range(Rest, {StartR, EndR}, Ret)
+    end.
 

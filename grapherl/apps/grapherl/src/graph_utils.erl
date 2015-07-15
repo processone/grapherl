@@ -1,6 +1,7 @@
 -module(graph_utils).
 
 -export([get_args/2
+        ,get_args/3
         ,open_port/2
         ,get_socket/2
         ,to_binary/1
@@ -20,10 +21,19 @@
 %% TL : TupleList
 %% get specified params in ParamList from TL
 get_args(TL, ParamList) ->
+    get_args(TL, ParamList, false).
+
+get_args(TL, ParamList, Default) ->
     try get_args0(TL, ParamList, []) of
         Params -> {ok, Params}
     catch
-        error:Error -> {error_params_missing, Error}
+        error:Error ->
+            case Default of 
+                false ->
+                    {error_params_missing, Error};
+                _ ->
+                    {ok, Default}
+            end
     end.
 
 %% helper func for get_router_args/2

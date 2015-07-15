@@ -5,8 +5,8 @@
 -export([start_link/1
         %,store/2
         ,direct_store/1
-        ,retrive/1
-        ,retrive/2
+        ,read_cache/1
+        ,read_db/1
         ,dump_data/1
         ,store_batch/3
         ,prepare_batch/2
@@ -34,15 +34,18 @@ direct_store(Data) ->
                                 gen_server:cast(Worker, {direct_store, Data})
                         end).
 
-%% get data points for Metric from cache and databse.
-retrive(MetricName) ->
-    retrive(MetricName, live).
-
-retrive(MetricName, Granularity) ->
+read_cache({Cn, Fd, Range}) ->
     poolboy:transaction(?DB_POOL,
                         fun(Worker) ->
-                                gen_server:call(Worker, {read_metric, MetricName, Granularity})
+                                gen_server:call(Worker, {read_cache, Cn, Fd, Range})
                         end).    
+
+
+read_db({Cn, Fd, Range}) ->
+    poolboy:transaction(?DB_POOL,
+                        fun(Worker) ->
+                                gen_server:call(Worker, {read_db, Cn, Fd, Range})
+                        end). 
 
 %% dump cache to databse after TIMEOUT
 dump_data(MetricId) ->
@@ -113,9 +116,14 @@ init([Args]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({read_metric, {_Mn, _Cn}, _Granularity}, _From, #{db_mod := _Db, cache_mod := _Cache} = State) ->
-    %% TODO read in chunks and keep sending the data.
-    {reply, ok, State};
+handle_call({read_cache, Cn, CacheFd, {Start, End}}, _From, #{cache_mod := Cache} = State) ->
+    {ok, Data} = Cache:get_range(CacheFd, {Cn, Start, End}),
+    {reply, {ok, Data}, State};
+
+handle_call({read_db, Cn, DbFd, {Start, End}}, _From, #{db_mod := Db} = State) ->
+    {ok, Data} = Db:get_range(DbFd, {Cn, Start, End}),
+    {reply, {ok, Data}, State};
+
 
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -208,30 +216,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-%% store_from_queue(Tab, CacheMod, BlockSize) ->
-%%     %io:format("[+] storing from queue ~p~n", [self()]),
-%%     case ets:match(Tab, {self(), '$2', '$3'}, BlockSize) of
-%%         '$end_of_table' ->
-%%             {ok, no_objects};
-
-%%         %% {[ [{Mn, Cn, Mt}, _] ], _} ->
-%%         {Points, _} ->
-
-%%             %% optimistic delete
-%%             %io:format("[+] optimistic delete points ~p, ~p~n", [self(), length(Points)]),
-%%             lists:map(
-%%               fun([Mid, Mp]) ->
-%%                       ets:delete_object(Tab, {self(), Mid, Mp})
-%%               end, Points),
-%%             %io:format("[+] preparing batch points ~p~n", [self()]),
-%%             {ok, Batch} = prepare_batch(Points, []),
-%%             io:format("[+] storing batch points ~p~n", [self()]),
-%%             store_batch(Tab, Batch, CacheMod),
-%%             {ok, cached}
-%%     end.
-
-
 store_batch(_Tab, [], _) ->
     {ok, []};
 store_batch(Tab, [{{Mn, Cn, Mt}, Data} | Rest], Cache) ->
@@ -256,10 +240,3 @@ prepare_batch([[{Mn, Cn, Mt}, {Key, Val}] | Rest], Acc) ->
             prepare_batch(Rest, lists:keystore({Mn, Cn, Mt}, 1, Acc,
                                                {{Mn, Cn, Mt}, [{Key, Val} | Data]}))
     end.
-
-%% mark_data(Worker, Tab, Data) ->
-%%     lists:map(
-%%       fun([{Mn,Cn,Mt}, {Key,Val}]) ->
-%%               ets:insert(Tab, {Worker, {Mn,Cn,Mt}, {Key,Val}}),
-%%               ets:delete_object(Tab, {{Mn,Cn,Mt}, {Key,Val}})
-%%       end, Data).

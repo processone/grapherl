@@ -7,6 +7,7 @@
         ,get_metric_fd/1
         ,get_metric_fd/2
         ,get_metric_maps/0
+        ,load_metric_map/1
         ,pre_process_metric/1
         ]).
 
@@ -42,7 +43,6 @@ get_metric_fd({Mn, Cn, Mt}, Granularity) ->
             {ok, CacheFd, DbFd}
     end.
 
-
 %% return all metric maps
 get_metric_maps() ->
     MetricData = lists:map(fun([{K,V}]) -> {K,V} end, ets:match(?MODULE, '$1')),
@@ -51,6 +51,7 @@ get_metric_maps() ->
 
 get_metric_maps({Mn, Cn, Mt}, Granularity) ->
     %case ets:lookup(?MODULE, {Mn, Cn}) of
+    % TODO send udpates to graph_db_server reg each incomming cilent
     case fetch_fd({Mn, Cn}) of
         [] when Granularity =:= live ->
             %io:format("metric don't exits calling gen_server ~p~n", [{Cn, self()}]),
@@ -68,6 +69,14 @@ get_metric_maps({Mn, Cn, Mt}, Granularity) ->
     end.
 
 
+load_metric_map({Mn, Cn}) ->
+    case fetch_fd({Mn, Cn}) of
+        [] ->
+            {false, error_no_metric_map};
+
+        [{_Key, Value}] ->
+            {ok, Value}
+    end.
 
 %%--------------------------------------------------------------------
 %% @doc
