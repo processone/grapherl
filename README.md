@@ -95,11 +95,12 @@ You can test Grapherl using the `testing.erl` module and while you are testing y
 erlang app called `observer` which has been included in Grapherl.
 
 
-Also, in case user wants to track a lot of metrics graph_db allows the user to bootstrap ram and disk db objects
-for metrics before any data starts coming in. Since creating ram and disk db objects is a time consuming task, so while
-receiving such huge traffic it is advisible that the user bootstrap some of the metrics so that the system doesn't fall
-under sudden load (though the app can handle sudden loads it just to assure constant cpu usage). In order to bootstrap
-metric user needs have a file in the following format:
+### Handling huge number metrics
+In case you want to track a lot of metrics graph_db allows the user to bootstrap ram and disk db objects
+for metrics before any data starts coming in. Doing this will be helpful becasue creating ram and disk db objects is
+a time consuming task, so while receiving such huge traffic it is advisible that the user bootstrap some of the metrics
+so that the system doesn't fall under sudden load (though the app can handle sudden loads it just to assure constant cpu usage).
+In order to bootstrap metric user needs have a file in the following format:
 
        cpu_usage, g
        user_count, c
@@ -114,6 +115,12 @@ in the grapherl (erlang) shell:
 
 NOTE: the above routine of boostraping metric is purely optional. This is be used in case you want to track a lot of metrics
 and that too when you expect to receive a burst of new data points none of which has its corresponding metric objects created.
+
+
+When tracking a large number of metrics it is advisible to increase the `ulimit`. For eg. if you are tracking like 500
+different metrics then set ulimit to `ulimit -n 10000`.
+
+
 
 ### graph_db across multiple boots
 graph_db maintains a list of metric names for which it is receiving data. This state is stored in a file name `db_manager.dat`.
