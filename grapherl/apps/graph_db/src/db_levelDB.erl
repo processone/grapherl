@@ -12,6 +12,7 @@
         ,delete_many/3
         ,clear_client/2
         ,get_range/2
+        ,get_clients/1
          ]).
 
 -include_lib("graph_db_records.hrl").
@@ -94,14 +95,33 @@ clear_client(#{ref := Ref}, Client) ->
 
 
 get_range(#{ref := Ref}, {Client, Start, End}) ->
-    Data = lists:reverse(eleveldb:fold(Ref,
-                                       fun({Term, V}, Acc) ->
-                                               case binary:split(Term, [<<",">>]) of
-                                                   [Client, K] when K =< Start andalso K >= End -> [{K, V} | Acc];
-                                                   _           -> Acc
-                                               end
-                                       end, [], [])),
+    Data = lists:reverse(
+             eleveldb:fold(Ref,
+                           fun({Term, V}, Acc) ->
+                                   case binary:split(Term, [<<",">>]) of
+                                       [Client, K] when K =< Start andalso
+                                                        K >= End ->
+                                           [{K, V} | Acc];
+                                       _ ->
+                                           Acc
+                                   end
+                           end, [], [])),
     {ok, Data}.
+
+
+%% returns unique clients
+get_clients(#{ref := Ref}) ->
+    Clients = lists:usort(
+                eleveldb:fold(Ref,
+                              fun({Term, _V}, Acc) ->
+                                      case binary:split(Term, [<<",">>]) of
+                                          [Client, _K] ->
+                                              [Client | Acc];
+                                          _  ->
+                                              Acc
+                                      end
+                              end, [], [])),
+    {ok, Clients}.
 
 
 %% ----------------------------------------------------------------------------

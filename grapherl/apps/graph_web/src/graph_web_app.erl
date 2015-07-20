@@ -20,7 +20,8 @@ start(_StartType, _StartArgs) ->
     Dispatch = cowboy_router:compile(
                  [{'_', [
                          {"/", cowboy_static, {priv_file, graph_web, "index.html"}},
-                         {"/websocket", ws_handler, []},
+                         {"/metric/data/:metric_name/:client_name/:range/:granularity", metric_handler, []},
+                         {"/metric/list", metric_handler, []},
                          {"/static/[...]", cowboy_static, {priv_dir, graph_web, "static"}}
                         ]}
                  ]),

@@ -5,6 +5,8 @@
 %% API functions
 -export([start_link/0
         ,get_data/2
+        ,get_metric_list/0
+        ,get_metric_data/4
         ,load_data/1]).
 
 %% gen_server callbacks
@@ -23,6 +25,25 @@
 get_data(From, Query) ->
     gen_server:cast(?MODULE, {get_data, From, Query}).
 
+%% Collect metric data from all nodes
+get_metric_list() ->
+    {ok, Maps} = db_manager:get_metric_maps(),
+    List = lists:map(
+             fun({{MetricName, _}, MetricData}) ->
+                     {ok, [DbFd, CacheFd]} =
+                         graph_utils:get_args(MetricData, [{db_fd, live},
+                                                           cache_fd]),
+                     {ok, Clients0} = db_worker:get_clients(db, DbFd),
+                     {ok, Clients1} = db_worker:get_clients(cache, CacheFd),
+                     Clients = lists:usort(lists:flatten([Clients0, Clients1])),
+                     {MetricName, Clients}
+             end, Maps),
+    {ok, List}.
+
+%% retrieve metric data
+get_metric_data(Metric, Client, {Start, End}, Granularity) ->
+    gen_server:call(?MODULE, {get_data, {Metric, Client, Start, End, 
+                              Granularity}}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -69,6 +90,10 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({get_data, Query}, _From, State) ->
+    io:format("getting data ~p~n", [Query]),
+    {ok, Data} = load_data(Query),
+    {reply, {ok, Data}, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.

@@ -10,6 +10,7 @@
         ,dump_data/1
         ,store_batch/3
         ,prepare_batch/2
+        ,get_clients/2
         ]).
 
 %% gen_server callbacks
@@ -54,6 +55,14 @@ dump_data(MetricId) ->
                               gen_server:cast(Worker, {dump_to_disk, MetricId})
                       end).
 
+get_clients(Type, DbFd) ->
+    poolboy:transaction(?DB_POOL,
+                        fun(Worker) ->
+                                gen_server:call(Worker,
+                                                {get_metric_clients, Type, 
+                                                 DbFd})
+                        end).
+    
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -116,14 +125,24 @@ init([Args]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({read_cache, Cn, CacheFd, {Start, End}}, _From, #{cache_mod := Cache} = State) ->
+handle_call({read_cache, Cn, CacheFd, {Start, End}}, _From,
+            #{cache_mod := Cache} = State) ->
     {ok, Data} = Cache:get_range(CacheFd, {Cn, Start, End}),
     {reply, {ok, Data}, State};
 
-handle_call({read_db, Cn, DbFd, {Start, End}}, _From, #{db_mod := Db} = State) ->
+handle_call({read_db, Cn, DbFd, {Start, End}}, _From,
+            #{db_mod := Db} = State) ->
     {ok, Data} = Db:get_range(DbFd, {Cn, Start, End}),
     {reply, {ok, Data}, State};
 
+handle_call({get_metric_clients, Type, Fd}, _From,
+            #{db_mod := Db, cache_mod := Cache} = State) ->
+    
+    {ok, Clients} = case Type of
+                        db -> Db:get_clients(Fd);
+                        cache -> Cache:get_clients(Fd)
+                    end,
+    {reply, {ok, Clients}, State};
 
 handle_call(_Request, _From, State) ->
     Reply = ok,

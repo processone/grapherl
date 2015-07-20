@@ -13,6 +13,8 @@ release:
 
 client:
 	cd apps/graph_web_client && grunt
+	rm -rf $(CLIENT_PATH)/priv
+	mkdir -p $(CLIENT_PATH)/priv
 	cp -R apps/graph_web_client/build/* $(CLIENT_PATH)/priv
 
 

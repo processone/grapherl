@@ -12,6 +12,7 @@
         ,delete_many/3
         ,clear_client/2
         ,get_range/2
+        ,get_clients/1
         ]).
 
 -include_lib("graph_db_records.hrl").
@@ -108,6 +109,12 @@ get_range(MetricName, {Cn, Start, End}) ->
              end, [], MetricName),
     {ok, Data}.
 
+
+%% return all unique clients
+get_clients(MetricName) ->
+    Clients = lists:usort(lists:flatten(
+                            ets:match(MetricName, {{'$1', '_'}, '_'}))),
+    {ok, Clients}.
 
 %% ----------------------------------------------------------------------------
 %% Internal Functions
