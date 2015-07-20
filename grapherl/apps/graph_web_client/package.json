@@ -12,7 +12,6 @@
     "grunt-contrib-compress": "~0.4.7",
     "grunt-contrib-coffee": "~0.13.0",
 
-    "react" :        "~0.13.3",
     "coffee-script": "~1.9.3",
     "jstest":        "~1.0.0",
     "uglify-js":     "~2.4.0"

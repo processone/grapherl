@@ -3,7 +3,7 @@ $(document).ready ->
   # init plugins
   # $.widget "grapherl.chartify", chartify
   $.widget "grapherl.dashboard", dashboard
-  $.widget "grapherl.chartjs_chartify", $.grapherl.dashboard, chartjs_chartify
+  #$.widget "grapherl.chartjs_chartify", $.grapherl.dashboard, chartjs_chartify
   $.widget "grapherl.c3_chartify", $.grapherl.dashboard, c3_chartify
 
   $.widget "grapherl.chartify", $.grapherl.dashboard, c3_chartify
@@ -20,8 +20,8 @@ $(document).ready ->
 
 
 init_app = ->
-  Chart.defaults.global = chartJs.config.global
-  Chart.defaults.Line   = chartJs.config.lineChart
+  #Chart.defaults.global = chartJs.config.global
+  #Chart.defaults.Line   = chartJs.config.lineChart
   get_active_metric()
   init_global_buttons()
 
