@@ -12,6 +12,18 @@ Compile and run
       $ make && make console
 
 
+# Images
+Single display in Grapherl
+![Grapherl](https://github.com/processone/grapherl/blob/feat-graph-web/grapherl/images/grapherl.png)
+
+Single and split displays in Grapherl
+![Split displays](https://github.com/processone/grapherl/blob/feat-graph-web/grapherl/images/grapherl2.png)
+
+Range specifier in Grapherl
+![Range specifier](https://github.com/processone/grapherl/blob/feat-graph-web/grapherl/images/grapherl3.png)
+
+
+
 # Configrations
 Grapherl consists of 2 components **graph_db** which receives UDP data and stores it, **graph_web** which retrives this
 data and creates nice visualizations for the user.

@@ -4,7 +4,7 @@
     box-shadow: -1px 2px 5px -3px rgba(0,0,0,0.75);
     background-color: #1565c0;
     border-color: #1565c0;
-
+    zoom : 90%;
     /* background-color: #2962ff; */
     /* border-color: #2962ff; */
 }
@@ -39,7 +39,7 @@
 body {
     font-family: 'Nunito', sans-serif;
     font-size: 15px;
-    padding-top: 50px;
+    padding-top: 40px;
 }
 
 body,html,.row-offcanvas {
@@ -65,6 +65,7 @@ li { cursor: pointer; }
   overflow-y:auto;
   overflow-x:auto;
   border: 1px solid #E3E3E3;
+  zoom : 90%;
 }
 
 #main {
