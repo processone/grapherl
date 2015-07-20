@@ -1,0 +1,109 @@
+.navbar#global-nav {
+    -webkit-box-shadow: -1px 2px 5px -3px rgba(0,0,0,0.75);
+    -moz-box-shadow: -1px 2px 5px -3px rgba(0,0,0,0.75);
+    box-shadow: -1px 2px 5px -3px rgba(0,0,0,0.75);
+    background-color: #1565c0;
+    border-color: #1565c0;
+
+    /* background-color: #2962ff; */
+    /* border-color: #2962ff; */
+}
+
+.graphDisplay {
+    resize:both;
+    box-shadow:none;
+    padding-bottom:0px;
+    background-color:white;
+}
+
+.navbar-brand#app_name {
+    font-family: 'Lobster', cursive;
+    font-size: 30px;
+    color: white;
+}
+
+.global-button {
+    text-shadow: 1px 1px 1px #ccc;
+    color:  #f44336;
+}
+
+/* #global-toolbar { */
+/*     top:40%; */
+/*     z-index:1; */
+/*     background-color:none; */
+/*     float: right; */
+/*     position:relative; */
+/*     border:none; */
+/* } */
+
+body {
+    font-family: 'Nunito', sans-serif;
+    font-size: 15px;
+    padding-top: 50px;
+}
+
+body,html,.row-offcanvas {
+  height:100%;
+}
+
+li { cursor: pointer; }
+
+.seperator {
+    margin-top  : 0px;
+    margin-bottom: 0px;
+    border-color: #bdbdbd
+}
+
+#sidebar {
+  width: inherit;
+  min-width: 210px;
+  max-width: 210px;
+  background-color:#f5f5f5;
+  float: left;
+  height:100%;
+  position:relative;
+  overflow-y:auto;
+  overflow-x:auto;
+  border: 1px solid #E3E3E3;
+}
+
+#main {
+  height:100%;
+  overflow:auto;
+}
+
+
+.daterangepicker select.yearselect, .daterangepicker select.monthselect,
+.daterangepicker select.hourselect, .daterangepicker select.minuteselect,
+.daterangepicker select.secondselect, .daterangepicker select.ampmselect {
+    background: white;
+    border-radius: 3px;
+}
+
+/*
+ * off Canvas sidebar
+ * --------------------------------------------------
+ */
+@media screen and (max-width: 768px) {
+  .row-offcanvas {
+    position: relative;
+    /* -webkit-transition: all 0.25s ease-out; */
+    /* -moz-transition: all 0.25s ease-out; */
+    transition: all 0.25s ease-out;
+    width:calc(100% + 220px);
+  }
+    
+  .row-offcanvas-left
+  {
+    left: -220px;
+  }
+
+  .row-offcanvas-left.active {
+    left: 0;
+  }
+
+  .sidebar-offcanvas {
+    position: absolute;
+    top: 0;
+  }
+}
