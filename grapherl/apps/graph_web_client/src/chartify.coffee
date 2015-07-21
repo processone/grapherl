@@ -7,7 +7,8 @@ dashboard =
     @_init_toolbar()
     @_toolbar_events()
 
-    if !@options.granularity? then @options.granularity = graph_utils.granularity.sec
+    @options.live = false
+    if !@options.granularity? then @options.granularity = graph_utils.granularity.min
     console.log "inside _init dashboard", @options.data
     if @options.data?
       #for Metric, Clients in @options.data
@@ -103,6 +104,21 @@ dashboard =
     # toggle button if selcection is canceled
     $(document).on "selectionCancel", =>
       @toggle_add_button(false)
+
+    Toolbar.find("#update_metrics").on "click.update", =>
+      if @options.live == false
+        Fun = =>
+          @element.find("#range_picker").data('daterangepicker').setEndDate(moment())
+          @update_all_metrics()
+
+        Interval = setInterval(Fun, graph_utils.get_interval(@options.granularity))
+        @options.live = Interval
+        Toolbar.find("#update_metrics").find("a").css("color", "#f44336")
+      else
+        clearInterval(@options.live)
+        @options.live = false
+        Toolbar.find("#update_metrics").find("a").css("color", "")
+
 
 
     # on change new data is fetched from server
@@ -243,24 +259,79 @@ chartDaemon =
     return false
 
   get_metric_data: (element, Metric, Client, Range, Granularity) ->
-    Cache = @_lookup_cache(Metric, Client, Range, Granularity)
+    [Status, Cache] = @_lookup_cache(Metric, Client, Range, Granularity)
 
-    if Cache == false
+    if Status == false
       [Start, End] = Range
-      #1437245094
-      Url = "/metric/data/" + Metric + "/" + Client + "/" + #"1437244814:1437244614/" + Granularity
+      Url = "/metric/data/" + Metric + "/" + Client + "/" + 
         Start.toString() + ":" + End.toString() + "/" + Granularity
+
       $.ajax(
         method : "GET"
         url    : Url
-        success: (data) ->
+        success: (data) =>
           element.trigger("metric_data", [Metric, Client, data])
+          @_insert_cache(Metric, Client, Granularity, data.metric_data)
       )
+    else
+      element.trigger("metric_data", [Metric, Client, {metric_data:Cache}])
 
     return false
+
+
+  _insert_cache: (Metric, Client, Granularity, Data) ->
+    if @_cache[Metric]?[Client]?[Granularity]?
+
+      for Key, Val of Data
+        if !@_cache[Metric][Client][Granularity][Key]?
+          @_cache[Metric][Client][Granularity][Key] = Val
+
+      @_sort_data(Metric, Client, Granularity)
+        
+    else if @_cache[Metric]?[Client]?
+      @_cache[Metric][Client][Granularity] = {}
+      @_insert_cache(Metric, Client, Granularity, Data)
+
+    else if @_cache[Metric]?
+      @_cache[Metric][Client] = {}
+      @_insert_cache(Metric, Client, Granularity, Data)
+
+    else
+      @_cache[Metric] = {}
+      @_cache[Metric][Client] = {}
+      @_cache[Metric][Client][Granularity] = Data
+  
+    return false
+
+  _sort_data: (Metric, Client, Granularity) ->
+    Keys = Object.keys(@_cache[Metric][Client][Granularity]).sort()
+    Data = {}
+    for Key in Keys
+      Data[Key] = @_cache[Metric][Client][Granularity][Key]
+
+    @_cache[Metric][Client][Granularity] = Data
+    return false
+
+
 
   _lookup_cache: (Metric, Client, Range, Granularity) ->
-    return false
+    if @_cache[Metric]?[Client]?[Granularity]?
+      [Rstart, Rend] = Range
+      Data = {}
+      Keys = Object.keys(@_cache[Metric][Client][Granularity])
+      Len  = Keys.length
+      Start= parseInt(Keys[0])
+      End  = parseInt(Keys[Keys.length - 1])
+
+      if Start <= Rstart and End >= Rend
+        for Key, Val of @_cache[Metric][Client][Granularity]
+          if Key >= Rstart and Key <= Rend then Data[Key] = Val
+        return [true, Data]
+      else
+        return [false, []]
+
+    else
+      return [false, []]
 
   _bind_events: ->
     $(document).on "metricData", (e, Data) ->

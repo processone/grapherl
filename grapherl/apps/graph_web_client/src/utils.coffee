@@ -15,6 +15,17 @@ graph_utils =
     GraphFrame.append(NewDisplay)
     return GraphFrame
 
+  get_interval: (Granularity) ->
+    if Granularity == graph_utils.granularity.sec
+      return 15000
+    else if Granularity == graph_utils.granularity.min
+      return 60000
+    else if Granularity == graph_utils.granularity.hour
+      return 3600000
+    else
+      return 3600000
+
+
   granularity:
     sec  : "sec"
     min  : "min"
@@ -126,7 +137,7 @@ UI =
                 </ul>
               </li>
 
-              <li title="Go live" id="udpateMetric" ><a href="#"><i class="fa fa-refresh"></i></a></li>
+              <li title="Go live" id="update_metrics" ><a href="#"><i class="fa fa-refresh"></i></a></li>
 
 
               <li class="dropdown" title="Granularity">

@@ -13,7 +13,7 @@ $(document).ready ->
 
   $(document).chartDaemon()
   init_app()
-  create_test_graph()
+  #create_test_graph()
 
   console.log "Grapherl client loaded !"
   return false

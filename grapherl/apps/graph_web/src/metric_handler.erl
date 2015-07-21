@@ -18,7 +18,6 @@
 init(Req, _Opts) ->
     case cowboy_req:path(Req) of
         <<"/metric/list">> ->
-            io:format("~n[+] ~p started to get latest metric list~n", [?MODULE]),
             {cowboy_rest, Req, #{qtype => get, query => list}};
 
         <<"/metric/data/", _Rest/binary>> ->
