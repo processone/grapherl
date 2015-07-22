@@ -42,8 +42,9 @@ get_metric_list() ->
 
 %% retrieve metric data
 get_metric_data(Metric, Client, {Start, End}, Granularity) ->
+    {ok, Granularity0} = db_utils:process_granularity(Granularity),
     gen_server:call(?MODULE, {get_data, {Metric, Client, Start, End, 
-                              Granularity}}).
+                              Granularity0}}).
 
 %%--------------------------------------------------------------------
 %% @doc

@@ -113,6 +113,9 @@ init([Args]) ->
     %% for persistance and to handle crash.
     reload_state(DbMod, CacheMod, Dir),
 
+    {ok, StateSaveTimeout} = application:get_env(graph_db, 
+                                                 db_manager_state_dump_timeout),
+    timer:send_interval(StateSaveTimeout, {save_state}),
     {ok, #{db          => DbMod
           ,cache       => CacheMod
           ,storage_dir => Dir}}.
@@ -121,35 +124,51 @@ init([Args]) ->
 reload_state(DbMod, CacheMod, Dir) ->
     case ets:info(?MODULE) of
         undefined ->
-            {ok, success} = load_prev_state(),
-            init_db_handlers(DbMod, CacheMod, Dir);
+            {ok, success} = load_prev_state(DbMod, CacheMod, Dir);
         _  ->
             {ok, success}
     end.
 
-%% initalize metric cache from db_manager state
-init_db_handlers(DbMod, CacheMod, Dir) ->
-    ets:foldl(
-      fun({{Mn, Cn}, {MetricName, Mt}}, Acc) ->
-              bootstrap_metric({Mn, Cn, Mt}, MetricName, {DbMod, open_db, live},
-                               {CacheMod, open_db}, Dir),
-              Acc
-      end, 0, ?MODULE).
 
 %% load db_manager ets dump from disk
-load_prev_state() ->
-    case ets:file2tab("db_manager.dat") of 
-        {error,{read_error,{file_error, _, enoent}}} ->
-            Pid = graph_db_sup:ets_sup_pid(),
-            ets:new(?MODULE, [set, public, named_table
-                             ,{heir, Pid, none}
-                             ,{write_concurrency, false}
-                             ,{read_concurrency, true}]),
-            {ok, success};
+load_prev_state(DbMod, CacheMod, Dir) ->
+    Path = erlang:binary_to_list(<<Dir/binary, "db_manager.dat">>),
+    Pid = graph_db_sup:ets_sup_pid(),
+    ets:new(?MODULE, [set, public, named_table
+                     ,{heir, Pid, none}
+                     ,{write_concurrency, false}
+                     ,{read_concurrency, true}]),
 
-        {ok, _Tab} ->
+    case file:open(Path, [read]) of
+        {error,enoent} -> {ok, success};
+        {ok, Fd} -> init_db_handlers(Fd, {DbMod, CacheMod, Dir})
+    end.
+
+%% initalize metric cache from db_manager state
+init_db_handlers(Fd, {DbMod, CacheMod, Dir}) ->
+    case file:read_line(Fd) of
+        {ok, Data} ->
+            [RMn, RMt] = string:tokens(string:strip(Data, both, $\n ), ","),
+            Mn = erlang:list_to_binary(string:strip(RMn)),
+            Mt = erlang:list_to_binary(string:strip(RMt)),
+            io:format("starting metric ~p ~p~n", [Mn, Mt]),
+            Cn = <<"metric">>,
+            MetricName = db_utils:to_metric_name({Mn, Cn}),
+            bootstrap_metric({Mn, Cn, Mt}, MetricName, {DbMod, open_db, live},
+                             {CacheMod, open_db}, Dir),
+
+            init_db_handlers(Fd, {DbMod, CacheMod, Dir});
+        eof ->
             {ok, success}
     end.
+
+    %% ets:foldl(
+    %%   fun({{Mn, Cn}, {MetricName, Mt}}, Acc) ->
+    %%           bootstrap_metric({Mn, Cn, Mt}, MetricName, {DbMod, open_db, live},
+    %%                            {CacheMod, open_db}, Dir),
+    %%           Acc
+    %%   end, 0, ?MODULE).
+
 
 
 %%--------------------------------------------------------------------
@@ -258,6 +277,11 @@ handle_info({cache_to_disk, MetricId}, State) ->
     db_worker:dump_data(MetricId),
     {noreply, State};
 
+handle_info({save_state}, State) ->
+    io:format("~n[+] periodically saving db_manager state~n", []),
+    dump_state(),
+    {noreply, State};
+
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -279,13 +303,11 @@ terminate(Reason, #{db := DbMod, cache := CacheMod}) ->
         shutdown ->
             Metrics     = ets:match(?MODULE, '$1'),
             CleanMetric =
-                fun([{Key, Value}]) ->
+                fun([{_Key, Value}]) ->
                         {ok, [Name
-                             ,Mtype
                              ,CacheFd
                              ,DbFd
                              ,Tref]} = graph_utils:get_args(Value, [name
-                                                                   ,metric_type
                                                                    ,cache_fd
                                                                    ,{db_fd, live}
                                                                    ,tref]),
@@ -296,17 +318,33 @@ terminate(Reason, #{db := DbMod, cache := CacheMod}) ->
                         [DbMod:insert_many(DbFd, Client, Points)  || {Client, Points} <- Data ],
                         CacheMod:close_db(CacheFd),
                         if Reason =:= shutdown -> graph_db_sup:ets_sup_stop_child(Name); true -> ok end,
-                        [DbMod:close_db(Fd) || {{db_fd, _Type}, Fd} <- Value],
-                        ets:insert(?MODULE, {Key, {Name, Mtype}})
+                        [DbMod:close_db(Fd) || {{db_fd, _Type}, Fd} <- Value]
+                        %ets:insert(?MODULE, {Key, {Name, Mtype}})
                 end,
             graph_utils:run_threads(8, Metrics, CleanMetric);
 
         _ ->
             ok
     end,
-    ets:tab2file(?MODULE, "db_manager.dat"),
+
+    %% write to file
+    dump_state(),
     if Reason =:= shutdown -> graph_db_sup:stop_ets_sup(); true -> ok end,    
     ok.
+
+
+dump_state() ->
+    %% write to file
+    {ok, Dir} = application:get_env(graph_db, storage_dir),
+    FilePath  = erlang:binary_to_list(<<Dir/binary, "db_manager.dat">>),
+    {ok, FFd} = file:open(FilePath, [write]),
+    ets:foldl(
+      fun({{Mn, _Cn}, Value}, _Acc) ->
+              {ok, [Mt]} = graph_utils:get_args(Value, [metric_type]),
+              file:write(FFd, erlang:binary_to_list(
+                                <<Mn/binary, ", ", Mt/binary, "\n">>))
+      end, 0, ?MODULE),
+    file:close(FFd).
 
 %%--------------------------------------------------------------------
 %% @private
