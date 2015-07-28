@@ -148,9 +148,10 @@ load_prev_state(DbMod, CacheMod, Dir) ->
 init_db_handlers(Fd, {DbMod, CacheMod, Dir}) ->
     case file:read_line(Fd) of
         {ok, Data} ->
-            [RMn, RMt] = string:tokens(string:strip(Data, both, $\n ), ","),
-            Mn = erlang:list_to_binary(string:strip(RMn)),
-            Mt = erlang:list_to_binary(string:strip(RMt)),
+            {ok, [Mn, Mt]} = extract_args(Data),
+            %% [RMn, RMt] = string:tokens(string:strip(Data, both, $\n ), ","),
+            %% Mn = erlang:list_to_binary(string:strip(RMn)),
+            %% Mt = erlang:list_to_binary(string:strip(RMt)),
             io:format("starting metric ~p ~p~n", [Mn, Mt]),
             Cn = <<"metric">>,
             MetricName = db_utils:to_metric_name({Mn, Cn}),
@@ -312,12 +313,13 @@ terminate(Reason, #{db := DbMod, cache := CacheMod}) ->
                                                                    ,{db_fd, live}
                                                                    ,tref]),
 
-                        %% store cache before crashing or terminating
+                        %% store cache before shutting down
                         timer:cancel(Tref),
                         {ok, Data} = CacheMod:read_all(CacheFd),
                         [DbMod:insert_many(DbFd, Client, Points)  || {Client, Points} <- Data ],
                         CacheMod:close_db(CacheFd),
-                        if Reason =:= shutdown -> graph_db_sup:ets_sup_stop_child(Name); true -> ok end,
+                        %% if Reason =:= shutdown -> graph_db_sup:ets_sup_stop_child(Name); true -> ok end,
+                        graph_db_sup:ets_sup_stop_child(Name),
                         [DbMod:close_db(Fd) || {{db_fd, _Type}, Fd} <- Value]
                         %ets:insert(?MODULE, {Key, {Name, Mtype}})
                 end,
@@ -426,15 +428,22 @@ pre_process_metric(FilePath) ->
 read_file(Fd) ->
     case file:read_line(Fd) of
         {ok, Data} ->
-            [RMn, RMt] = string:tokens(string:strip(Data, both, $\n ), ","),
-            Mn = erlang:list_to_binary(string:strip(RMn)),
-            Mt = erlang:list_to_binary(string:strip(RMt)),
+            %% [RMn, RMt] = string:tokens(string:strip(Data, both, $\n ), ","),
+            %% Mn = erlang:list_to_binary(string:strip(RMn)),
+            %% Mt = erlang:list_to_binary(string:strip(RMt)),
+            {ok, [Mn, Mt]} = extract_args(Data),
             io:format("starting metric ~p ~p~n", [Mn, Mt]),
             db_manager:get_metric_fd({Mn, <<"metric">>, Mt}),
             read_file(Fd);
         eof ->
             ok
     end.
+
+extract_args(Data) ->
+    [RMn, RMt] = string:tokens(string:strip(Data, both, $\n ), ","),
+    Mn = erlang:list_to_binary(string:strip(RMn)),
+    Mt = erlang:list_to_binary(string:strip(RMt)),
+    {ok, [Mn, Mt]}.
 
 %% testing
 

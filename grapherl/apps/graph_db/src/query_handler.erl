@@ -72,9 +72,9 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    %% ets:new(?MODULE, [set, public, named_table
-    %%                  ,{write_concurrency, false}
-    %%                  ,{read_concurrency, true}]),
+    ets:new(?MODULE, [set, public, named_table
+                     ,{write_concurrency, false}
+                     ,{read_concurrency, true}]),
     {ok, #{}}.
 
 %%--------------------------------------------------------------------
@@ -92,6 +92,7 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({get_data, Query}, _From, State) ->
+    %% for optimization we can cache query.
     io:format("getting data ~p~n", [Query]),
     {ok, Data} = load_data(Query),
     {reply, {ok, Data}, State};

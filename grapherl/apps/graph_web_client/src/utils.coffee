@@ -101,6 +101,20 @@ UI =
     return """<div> <canvas id="#{Id}"></canvas> </div> """
 
 
+  graphToolbar_intervalFrom: (Value) ->
+    return """
+      <div id="popover-content" class="hide">
+        <form class="form-inline" role="form" id="update-interval">
+          <div class="form-group">
+            <input id="interval" value="#{Value}" type="number"
+             placeholder="Seconds" class="form-control" maxlength="5"
+              type="text" style="max-width:120px;">
+            <button type="submit" class="btn btn-primary">Update »</button>
+          </div>
+        </form>
+      </div> """
+
+
   graphToolbar: ->
     return """
       <hr style="border-color:rgba(179, 179, 179, 0.6); margin:0px;">
@@ -125,7 +139,7 @@ UI =
               </li>
               <li title="Specify interval" id="range_picker" ><a href="#"><i class="fa fa-clock-o"></i></a></li>
 
-              <li title="Duplicate display" id="duplicate"><a href="#"><i class="fa fa-copy"></i></a></li>
+              <!-- <li title="Duplicate display" id="duplicate"><a href="#"><i class="fa fa-copy"></i></a></li> -->
               <li title="Add more metric" id="addMetric"><a href="#"><i class="fa fa-plus-square-o"></i></a></li>
               <li title="Add more metric" id="selectionDone" style="display:none;"><a href="#"><i class="fa fa-square-o"></i></a></li>
 
@@ -137,7 +151,16 @@ UI =
                 </ul>
               </li>
 
-              <li title="Go live" id="update_metrics" ><a href="#"><i class="fa fa-refresh"></i></a></li>
+              <li title="Go live" id="update_metrics" >
+                 <a href="#">
+                    <i class="fa fa-refresh live"></i>
+
+                    <span  data-placement="bottom" data-toggle="update-interval-popover" data-title="Change udpate interval"
+                      data-container="body" type="button" data-html="true" href="#">
+                      <i class="fa fa-angle-down"></i>
+                    </span>
+                </a>
+              </li>
 
 
               <li class="dropdown" title="Granularity">
@@ -157,7 +180,7 @@ UI =
 
             <ul class="nav navbar-nav navbar-right">
               <li title="Remove display" id="delDisplay"><a href="#"><i class="fa fa-trash-o"></i></a></li>
-              <li title="Save" id="saveDisplay"><a href="#"><i class="fa fa-save"></i></a></li>
+              <!-- <li title="Save" id="saveDisplay"><a href="#"><i class="fa fa-save"></i></a></li> -->
             </ul>
 
           </div><!-- /.navbar-collapse -->

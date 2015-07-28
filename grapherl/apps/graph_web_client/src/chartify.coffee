@@ -7,8 +7,11 @@ dashboard =
     @_init_toolbar()
     @_toolbar_events()
 
+
     @options.live = false
     if !@options.granularity? then @options.granularity = graph_utils.granularity.min
+    @options.interval = 60000
+
     console.log "inside _init dashboard", @options.data
     if @options.data?
       #for Metric, Clients in @options.data
@@ -105,19 +108,21 @@ dashboard =
     $(document).on "selectionCancel", =>
       @toggle_add_button(false)
 
-    Toolbar.find("#update_metrics").on "click.update", =>
+
+    Toolbar.find("#update_metrics i.live").on "click.update", =>
       if @options.live == false
         Fun = =>
           @element.find("#range_picker").data('daterangepicker').setEndDate(moment())
           @update_all_metrics()
 
-        Interval = setInterval(Fun, graph_utils.get_interval(@options.granularity))
+        #Interval = setInterval(Fun, graph_utils.get_interval(@options.granularity))
+        Interval      = setInterval(Fun, @options.interval)
         @options.live = Interval
-        Toolbar.find("#update_metrics").find("a").css("color", "#f44336")
+        Toolbar.find("#update_metrics").find("a i.live").css("color", "#f44336")
       else
         clearInterval(@options.live)
         @options.live = false
-        Toolbar.find("#update_metrics").find("a").css("color", "")
+        Toolbar.find("#update_metrics").find("a i.live").css("color", "")
 
 
 
@@ -127,6 +132,28 @@ dashboard =
       @options.granularity = Id
       console.log @options.granularity
       #TODO trigger event to change chart acc to granularity
+
+
+
+    Toolbar.find("[data-toggle=update-interval-popover]").popover({
+      html: true
+      container: @element
+      content: =>
+        return $(UI.graphToolbar_intervalFrom(@options.interval/1000)).html()
+    })
+
+    Toolbar.find("[data-toggle=update-interval-popover]").on "shown.bs.popover", =>
+      Form = @element.find(".popover").find("#update-interval")
+      Form.on "submit", (e) =>
+        e.preventDefault()
+        Val = Form.find("#interval").val()
+        @options.interval = Val * 1000
+        console.log "new interval", Val
+        Toolbar.find("[data-toggle=update-interval-popover]").popover('hide')
+        if !(@options.live == false)
+          Toolbar.find("#update_metrics i.live").trigger "click.update"
+          Toolbar.find("#update_metrics i.live").trigger "click.update"          
+
 
 
     return @options.toolbar = Toolbar

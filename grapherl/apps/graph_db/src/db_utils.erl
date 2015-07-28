@@ -10,6 +10,7 @@
         ,db_days/1
         ,to_metric_name/1
         ,get_metric_name/2
+        ,process_granularity/1
         ,get_prev_type/1
         ,get_next_type/1
         ,get_interval/1
@@ -65,8 +66,9 @@ db_days(Name) when is_binary(Name) ->
 
 
 %% convert to metric name for metric id
-to_metric_name({Mid, Cn}) ->
-    <<Mid/binary, "-", Cn/binary>>.
+to_metric_name({Mid, _Cn}) ->
+    <<Mid/binary, "-metric">>.
+    %%<<Mid/binary, "-", Cn/binary>>.
 
 
 %% for a list for {Key, Val} get the average difference between keys
@@ -101,6 +103,18 @@ get_metric_name(?DAY, Name) ->
     db_days(Name);
 get_metric_name(_, Name) ->
     db_days(Name).
+
+
+process_granularity(<<"sec">>) ->
+    {ok, ?SEC};
+process_granularity(<<"min">>) ->
+    {ok, ?MIN};
+process_granularity(<<"hour">>) ->
+    {ok, ?HOUR};
+process_granularity(<<"day">>) ->
+    {ok, ?DAY};
+process_granularity(_) ->
+    {ok, ?DAY}.
 
 
 get_prev_type(?SEC)  -> stop;
