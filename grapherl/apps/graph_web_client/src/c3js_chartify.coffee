@@ -38,6 +38,12 @@ c3_chartify =
         Form.find("#add_axis").prop("checked", true)
         Form.find("#metric_select").find("##{@options.moreYaxis}").attr('selected', true)
 
+      if @options.xgrid == true then Form.find("#add_grid_x").prop("checked", true)
+      if @options.ygrid == true then Form.find("#add_grid_y").prop("checked", true)
+      if @options.rotateAxis == true then Form.find("#rotate_axis").prop("checked", true)
+      if @options.subchart == true then Form.find("#subchart").prop("checked", true)
+
+
       # allow user to enable additional Y axis
       Form.find("#add_axis").on "click", (e) =>
         if Form.find("#add_axis").is(":checked")
@@ -48,6 +54,11 @@ c3_chartify =
       Form.on "submit", (e) =>
         e.preventDefault()
         Toolbar.find("[data-toggle=config-chart-popover]").popover('hide')
+
+        if Form.find("#add_grid_x").is(":checked") then @options.xgrid = true else @options.xgrid = false
+        if Form.find("#add_grid_y").is(":checked") then @options.ygrid = true else @options.ygrid = false
+        if Form.find("#rotate_axis").is(":checked") then @options.rotateAxis = true else @options.rotateAxis = false
+        if Form.find("#subchart").is(":checked") then @options.subchart = true else @options.subchart = false
 
         if Form.find("#add_axis").is(":checked")
           Id = Form.find("#metric_select").children(":selected").attr("id")
@@ -60,6 +71,7 @@ c3_chartify =
         else
           @options.moreYaxis = false
           @render_chart()
+
 
 
   render_chart : (Type = "line") ->
@@ -99,10 +111,23 @@ c3_chartify =
           type: 'timeseries',
           tick:
             format: '%m-%d %H:%M:%S'
-        # y2:
-        #   show: true
+        rotated: false
+
+      grid:
+        x:
+          show: false
+        y:
+          show: false
+
+      subchart:
+        show: false
 
     if @options.moreYaxis != false then Args.axis['y2'] = {show: true}
+
+    if @options.xgrid == true then Args.grid.x.show = true
+    if @options.ygrid == true then Args.grid.y.show = true
+    if @options.rotateAxis == true then Args.axis.rotated = true
+    if @options.subchart == true then Args.subchart.show = true
 
     # display chart 
     chart = c3.generate(Args)
@@ -216,8 +241,6 @@ c3_utils =
         Option = """ <option id="#{Id}">#{Metric} #{Client}</option> """
         List = List.concat(Option)
 
-    console.log List
-
     return """
       <div class="hide">
         <form class="form" role="form" id="chart-config">
@@ -231,6 +254,31 @@ c3_utils =
               #{List}
             </select>
           </div>
+
+          <div class="form-group">
+            <div> <label> Grids :</label>
+              <input id="add_grid_x" type="checkbox" value=""> X grid 
+              <input id="add_grid_y" type="checkbox" value=""> Y grid
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="checkbox">
+              <label>
+                <input id="rotate_axis" type="checkbox" value="">
+                Rotate axis
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="checkbox">
+              <label><input id="subchart" type="checkbox" value="">
+                Subchart display
+              </label>
+            </div>
+          </div>
+
           <div class="form-group">
             <button type="submit" class="btn btn-primary">Submit »</button>
           </div>
