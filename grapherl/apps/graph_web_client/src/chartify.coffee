@@ -152,7 +152,7 @@ dashboard =
         Toolbar.find("[data-toggle=update-interval-popover]").popover('hide')
         if !(@options.live == false)
           Toolbar.find("#update_metrics i.live").trigger "click.update"
-          Toolbar.find("#update_metrics i.live").trigger "click.update"          
+          Toolbar.find("#update_metrics i.live").trigger "click.update"
 
 
 
@@ -192,9 +192,7 @@ dashboard =
       if @options.data[Metric]?
 
         if @options.data[Metric][Client]?
-          # for Key, Val of Data.metric_data
-          #   if @options.data[Metric][Client].data[Key]?
-          #     delete Data.metric_data[Key]
+          @options.data[Metric][Client] = {data: Data.metric_data}
           @update_metric_data(Metric, Client, Data.metric_data)
 
         else

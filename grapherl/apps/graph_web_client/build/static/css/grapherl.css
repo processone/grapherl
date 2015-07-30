@@ -4,7 +4,8 @@
     box-shadow: -1px 2px 5px -3px rgba(0,0,0,0.75);
     background-color: #1565c0;
     border-color: #1565c0;
-    zoom : 90%;
+    min-height: 40px;
+    /* zoom : 85%; */
     /* background-color: #2962ff; */
     /* border-color: #2962ff; */
 }
@@ -18,8 +19,10 @@
 
 .navbar-brand#app_name {
     font-family: 'Lobster', cursive;
-    font-size: 30px;
+    font-size: 25px;
     color: white;
+    height: 40px;
+    padding: 10px 15px;
 }
 
 .global-button {
@@ -38,7 +41,7 @@
 
 body {
     font-family: 'Nunito', sans-serif;
-    font-size: 15px;
+    /* font-size: 15px; */
     padding-top: 40px;
 }
 
@@ -56,7 +59,7 @@ li { cursor: pointer; }
 
 #sidebar {
   width: inherit;
-  min-width: 210px;
+  min-width: 190px;
   max-width: 210px;
   background-color:#f5f5f5;
   float: left;
@@ -65,7 +68,8 @@ li { cursor: pointer; }
   overflow-y:auto;
   overflow-x:auto;
   border: 1px solid #E3E3E3;
-  zoom : 90%;
+  font-size: 12.5px;
+  /* zoom : 85%; */
 }
 
 #main {

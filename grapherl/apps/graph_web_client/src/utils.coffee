@@ -163,6 +163,7 @@ UI =
               </li>
 
 
+
               <li class="dropdown" title="Granularity">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true"
                   aria-expanded="false"><i class="fa fa-sitemap"></i></a>
@@ -175,6 +176,9 @@ UI =
                   <li id="#{graph_utils.granularity.month}" ><a href="#">Months</a></li>
                 </ul>
               </li>
+
+            <li class="chartify_hook"></li>
+
 
             </ul>
 
