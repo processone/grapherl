@@ -55,7 +55,24 @@ dashboard =
 
     # change chart type
     Toolbar.find("#chart_type li").on "click", (e) =>
-      @transform_chart(e.currentTarget.id)
+      e.stopImmediatePropagation()
+      
+      # toogle dropdown options
+      if Toolbar.find("#chart_type li##{e.currentTarget.id}").hasClass("active") == false
+        Toolbar.find("#chart_type li##{e.currentTarget.id}").find(".fa-angle-down")
+          .removeClass("fa-angle-down")
+          .addClass("fa-angle-up")
+
+        Toolbar.find("#chart_type li##{e.currentTarget.id}").addClass("active")
+        @show_avail_charts(e.currentTarget.id)
+      else
+        Toolbar.find("#chart_type li##{e.currentTarget.id}").find(".fa-angle-up")
+          .removeClass("fa-angle-up")
+          .addClass("fa-angle-down")
+
+        Toolbar.find("#chart_type li##{e.currentTarget.id}").removeClass("active")
+        @options.toolbar.find("#chart_type").find(".#{e.currentTarget.id}").remove()
+
 
     # add daterangepicker 
     @inti_daterangepicker()
@@ -211,11 +228,34 @@ dashboard =
 
     return false
 
- 
+
   update_all_metrics: ->
     for Metric, Clients of @options.data
       for Client, Data of Clients
         @get_data_from_daemon(Metric, Client)
+
+
+  # show current charts to allow user to change the display style
+  show_avail_charts: (Id) ->
+    @options.toolbar.find("#chart_type").find(".#{Id}").remove()
+    Options=""" <li class="#{Id}" data-client="all" data-metric="#{Metric}">
+           <a href="#" style="font-size: x-small; color: gray;"> All </a></li>"""
+
+    for Metric, Clients of @options.data
+      for Client, D of Clients
+        Option =
+        """<li class="#{Id}" data-client="#{Client}" data-metric="#{Metric}">
+           <a href="#" style="font-size: 11px; color: gray;"> #{Metric} (#{Client})</a></li>"""
+        Options = Options.concat(Option)
+
+    Options = Options.concat(""" <li role="separator" class="divider #{Id}"></li> """)
+    Ele = @options.toolbar.find("#chart_type").find("##{Id}")
+    $(Options).insertAfter(Ele)
+
+    @options.toolbar.find("#chart_type").find(".#{Id}").on "click", (e) =>
+      Client = e.currentTarget.dataset.client
+      Metric = e.currentTarget.dataset.metric
+      @transform_chart(Id, Client, Metric)
 
 
   # ping chart daemon to give data

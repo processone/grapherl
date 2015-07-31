@@ -135,8 +135,35 @@ different metrics then set ulimit to `ulimit -n 10000`.
 
 
 ### graph_db across multiple boots
-graph_db maintains a list of metric names for which it is receiving data. This state is stored in a file name `db_manager.dat`.
-This is to ensure that even across multiple VM restarts graph_db knows which metrics objects is was receiving. So, if you want
+graph_db maintains a list of metric names for which it is receiving data. This state is stored in a file name `db_manager.dat`
+located in `storage_dir` directory. This is to ensure that even across multiple VM restarts or in case of a VM crash
+graph_db knows which metrics objects it was receiving. So, if you want
 to restart Grapherl but don't want it reload its previous state remove this file before restarting. On the other hand, if you
-want to start Grapherl on some other server but want it to be at the same state where the current instance of Grapherl is
-running then just take the `db_manager.dat` file and place it in the correct folder (same where you copied it from !).
+want to migrate Grapherl to some other server but want it to be at the same state where the current instance of Grapherl is
+running then just take the `db_manager.dat` file and place it in `storage_dir`.
+
+**Note**: the storage format for `db_manager.dat` is same as that of the bootstrap file discussed in the previous section.
+
+
+## graph_web
+
+**Brief description**:
+
+This sub-app is responsible for serving data gathered by Grapherl. There isn't much to configure in graph_web except
+the port at which the web server listens. The default port is 9090 but user is free to change it acc to their needs. But
+remember to start Grapherl with necessary permissions (eg. sudo in case port < 1024).
+
+Now we discuss various features offered on the client side. 
+
+      - The client side has a side-bar which shows active metrics. This side-bar is auto-refreshed every 10 minutes but the user can manually refresh by clicking on the refresh button located in the top right corner of the side-bar.
+      - Clicking on any of the metrics in side-bar will start a display which will show the data aggregated in the past 3 hours.
+      - A display is a frame/panel which displays the graphs. It is composed of two parts: toolbar and chart display area. There are two kinds of displays that can be created:
+            - Single displays: these span the width.
+            - Split displays : two displays places side-by-side.
+      - User can add these displays by clicking the pink buttons located in the top-right corner (of global toolbar).
+      - User can add/remove multiple metrics to these displays.
+      - User can specify the range, granularity at which the graphs are to be displayed.
+      - To display live data you can click the live button and also configure the interval after which new data will be requested from the server.
+      - User can change the display type for any metric by clicking the gear button in display toolbar. Currently 3 types of graphs are supported (bar, line, spline)
+      - If the data is not available at the current selected granularity then it will serverd at either higher or lower granularity (which ever is available).
+      - User can also add x/y grids line, additional y axis (for different scales), subgraph view or rotate axis. All these can be configured by clicking on the stacked bars icon in display toolbar.

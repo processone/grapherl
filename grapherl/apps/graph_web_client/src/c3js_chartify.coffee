@@ -201,8 +201,11 @@ c3_chartify =
     })
 
   # change chart display method
-  transform_chart:(Type = "spline") ->
-    @_state.chart.transform(Type);
+  transform_chart:(Type = "spline", Client, Metric) ->
+    if Client == "all"
+      @_state.chart.transform(Type);
+    else
+      @_state.chart.transform(Type, c3_utils.to_data_label(Client, Metric));
 
   saveDisplay: ->
     return false

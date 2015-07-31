@@ -131,12 +131,13 @@ UI =
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true"
                   aria-expanded="false"><i class="fa fa-gear"></i></a>
                 <ul class="dropdown-menu">
-                  <li id="bar"><a href="#"><i class="fa fa-bar-chart"></i> Bar chart</a></li>
-                  <li id="line"><a href="#"><i class="fa fa-line-chart"></i> Line chart</a></li>
-                  <li id="spline"><a href="#"><i class="fa fa-line-chart"></i> Spline chart</a></li>
-                  <!-- <li><a href="#"><i class="fa fa-pie-chart"></i> Pie chart</a></li> -->
+                  <li id="bar"> <a href="#"><i class="fa fa-bar-chart"></i> Bar chart <i class="fa fa-angle-down pull-right"></i></a></li>
+                  <li id="line"> <a href="#"><i class="fa fa-line-chart"></i> Line chart <i class="fa fa-angle-down pull-right"></i></a></li>
+                  <li id="spline"> <a href="#"><i class="fa fa-line-chart"></i> Spline chart <i class="fa fa-angle-down pull-right"></i></a></li>
                 </ul>
               </li>
+
+
               <li title="Specify interval" id="range_picker" ><a href="#"><i class="fa fa-clock-o"></i></a></li>
 
               <!-- <li title="Duplicate display" id="duplicate"><a href="#"><i class="fa fa-copy"></i></a></li> -->
