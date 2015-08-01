@@ -10,6 +10,7 @@ c3_chartify =
   _init: ->
     @_super()
     @options.moreYaxis = false
+    @options.max_x_labels = if @options.split == true then 5 else 10
     @append_configrations()
 
   append_configrations: ->
@@ -23,6 +24,7 @@ c3_chartify =
     Toolbar.find(".chartify_hook").replaceWith(Li_element)
     Toolbar.find("[data-toggle=config-chart-popover]").popover({
       html: true
+      placement: 'right'
       container: @element
       content: =>
         return $(c3_utils.chart_config(@options.data)).html()
@@ -43,6 +45,7 @@ c3_chartify =
       if @options.rotateAxis == true then Form.find("#rotate_axis").prop("checked", true)
       if @options.subchart == true then Form.find("#subchart").prop("checked", true)
 
+      Form.find("#max_x_labels").val(@options.max_x_labels)
 
       # allow user to enable additional Y axis
       Form.find("#add_axis").on "click", (e) =>
@@ -60,9 +63,11 @@ c3_chartify =
         if Form.find("#rotate_axis").is(":checked") then @options.rotateAxis = true else @options.rotateAxis = false
         if Form.find("#subchart").is(":checked") then @options.subchart = true else @options.subchart = false
 
+        Val = parseInt(Form.find("#max_x_labels").val())
+        if Number.isInteger(Val) == true then @options.max_x_labels = Val
+
         if Form.find("#add_axis").is(":checked")
           Id = Form.find("#metric_select").children(":selected").attr("id")
-          console.log Id
           if Id == undefined
             @options.moreYaxis = false
           else
@@ -111,7 +116,11 @@ c3_chartify =
           type: 'timeseries',
           tick:
             format: '%m-%d %H:%M:%S'
+            culling:
+              max  : @options.max_x_labels
+
         rotated: false
+
 
       grid:
         x:
@@ -129,25 +138,9 @@ c3_chartify =
     if @options.rotateAxis == true then Args.axis.rotated = true
     if @options.subchart == true then Args.subchart.show = true
 
+    # console.log "generating chart", Args
     # display chart 
-    chart = c3.generate(Args)
-    # chart = c3.generate({
-    #   bindto: "##{Id}"
-    #   data  : Options 
-    #   # transition:
-    #   #   duration: 0
-    #   padding:
-    #     right: 50
-    #   legend:
-    #     position: 'bottom'
-    #   axis:
-    #     x:
-    #       type: 'timeseries',
-    #       tick:
-    #         format: '%m-%d %H:%M:%S'
-    #     y2:
-    #       show: true
-    # })
+    chart         = c3.generate(Args)
     @_state.chart = chart
     # if @options.moreYaxis != false
     #   Dict = {}
@@ -278,6 +271,14 @@ c3_utils =
             <div class="checkbox">
               <label><input id="subchart" type="checkbox" value="">
                 Subchart display
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="checkbox">
+              <label> Max x-axis labels
+                <input id="max_x_labels" type="number" min=1>
               </label>
             </div>
           </div>

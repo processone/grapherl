@@ -11,7 +11,7 @@ graph_utils =
   add_split_display: ->
     GraphFrame   = $(UI.graphDiv())
     NewDisplay   = $(UI.graphNewSplit())
-    NewDisplay.find("#display").chartify()
+    NewDisplay.find("#display").chartify({split: true})
     GraphFrame.append(NewDisplay)
     return GraphFrame
 

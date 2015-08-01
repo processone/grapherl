@@ -8,6 +8,7 @@
     _init: function() {
       this._super();
       this.options.moreYaxis = false;
+      this.options.max_x_labels = this.options.split === true ? 5 : 10;
       return this.append_configrations();
     },
     append_configrations: function() {
@@ -17,6 +18,7 @@
       Toolbar.find(".chartify_hook").replaceWith(Li_element);
       Toolbar.find("[data-toggle=config-chart-popover]").popover({
         html: true,
+        placement: 'right',
         container: this.element,
         content: (function(_this) {
           return function() {
@@ -46,6 +48,7 @@
           if (_this.options.subchart === true) {
             Form.find("#subchart").prop("checked", true);
           }
+          Form.find("#max_x_labels").val(_this.options.max_x_labels);
           Form.find("#add_axis").on("click", function(e) {
             if (Form.find("#add_axis").is(":checked")) {
               return Form.find("#metric_select").prop('disabled', false);
@@ -54,7 +57,7 @@
             }
           });
           return Form.on("submit", function(e) {
-            var Id;
+            var Id, Val;
             e.preventDefault();
             Toolbar.find("[data-toggle=config-chart-popover]").popover('hide');
             if (Form.find("#add_grid_x").is(":checked")) {
@@ -77,9 +80,12 @@
             } else {
               _this.options.subchart = false;
             }
+            Val = parseInt(Form.find("#max_x_labels").val());
+            if (Number.isInteger(Val) === true) {
+              _this.options.max_x_labels = Val;
+            }
             if (Form.find("#add_axis").is(":checked")) {
               Id = Form.find("#metric_select").children(":selected").attr("id");
-              console.log(Id);
               if (Id === void 0) {
                 return _this.options.moreYaxis = false;
               } else {
@@ -138,7 +144,10 @@
           x: {
             type: 'timeseries',
             tick: {
-              format: '%m-%d %H:%M:%S'
+              format: '%m-%d %H:%M:%S',
+              culling: {
+                max: this.options.max_x_labels
+              }
             }
           },
           rotated: false
@@ -265,7 +274,7 @@
           List = List.concat(Option);
         }
       }
-      return "<div class=\"hide\">\n  <form class=\"form\" role=\"form\" id=\"chart-config\">\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"add_axis\" type=\"checkbox\" value=\"\">\n          Additional Y axis for\n        </label>\n      </div>\n      <select class=\"form-control\" id=\"metric_select\">\n        " + List + "\n      </select>\n    </div>\n\n    <div class=\"form-group\">\n      <div> <label> Grids :</label>\n        <input id=\"add_grid_x\" type=\"checkbox\" value=\"\"> X grid \n        <input id=\"add_grid_y\" type=\"checkbox\" value=\"\"> Y grid\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label>\n          <input id=\"rotate_axis\" type=\"checkbox\" value=\"\">\n          Rotate axis\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"subchart\" type=\"checkbox\" value=\"\">\n          Subchart display\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <button type=\"submit\" class=\"btn btn-primary\">Submit »</button>\n    </div>\n  </form>\n</div> ";
+      return "<div class=\"hide\">\n  <form class=\"form\" role=\"form\" id=\"chart-config\">\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"add_axis\" type=\"checkbox\" value=\"\">\n          Additional Y axis for\n        </label>\n      </div>\n      <select class=\"form-control\" id=\"metric_select\">\n        " + List + "\n      </select>\n    </div>\n\n    <div class=\"form-group\">\n      <div> <label> Grids :</label>\n        <input id=\"add_grid_x\" type=\"checkbox\" value=\"\"> X grid \n        <input id=\"add_grid_y\" type=\"checkbox\" value=\"\"> Y grid\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label>\n          <input id=\"rotate_axis\" type=\"checkbox\" value=\"\">\n          Rotate axis\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"subchart\" type=\"checkbox\" value=\"\">\n          Subchart display\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label> Max x-axis labels\n          <input id=\"max_x_labels\" type=\"number\" min=1>\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <button type=\"submit\" class=\"btn btn-primary\">Submit »</button>\n    </div>\n  </form>\n</div> ";
     }
   };
 
@@ -417,6 +426,7 @@
       })(this));
       Toolbar.find("[data-toggle=update-interval-popover]").popover({
         html: true,
+        placement: 'right',
         container: this.element,
         content: (function(_this) {
           return function() {
@@ -940,7 +950,9 @@
       var GraphFrame, NewDisplay;
       GraphFrame = $(UI.graphDiv());
       NewDisplay = $(UI.graphNewSplit());
-      NewDisplay.find("#display").chartify();
+      NewDisplay.find("#display").chartify({
+        split: true
+      });
       GraphFrame.append(NewDisplay);
       return GraphFrame;
     },

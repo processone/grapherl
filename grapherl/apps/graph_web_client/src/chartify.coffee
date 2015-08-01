@@ -154,6 +154,7 @@ dashboard =
 
     Toolbar.find("[data-toggle=update-interval-popover]").popover({
       html: true
+      placement: 'right'
       container: @element
       content: =>
         return $(UI.graphToolbar_intervalFrom(@options.interval/1000)).html()

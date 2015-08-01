@@ -31,14 +31,15 @@ client(Name, Socket, Num, Ts) ->
     gen_udp:send(Socket, {127,0,0,1}, 11111, Data),
     %ets:insert(testrouter, [{k,v}]),
     timer:sleep(20),
-    client(Name, Socket, Num -1, Ts + 60).
+    client(Name, Socket, Num -1, Ts + 5).
 
 
 data(Name, Ts) ->
-    Val  = erlang:integer_to_list(random:uniform(100)),
+    Val  = erlang:integer_to_list(crypto:rand_uniform(0, 100)),
+    % Val  = erlang:integer_to_list(random:uniform(100)),
     TsS  = erlang:integer_to_list(Ts),
     %Data = Client ++ "/cpu_usage:g/" ++ TsS ++ ":" ++ Val, 
-    Data = "www.server01.com/" ++ Name ++ ":g/" ++ TsS ++ ":" ++ Val, 
+    Data = "www.server01.com/" ++ Name ++ ":c/" ++ TsS ++ ":" ++ Val, 
     %Data = "{\"mid\": {\"cn\": \"" ++ Client ++ "\", \"mn\": \"cpu_usage\"}, \"mp\": {\"" ++ TsS ++ "\":" ++ Val ++ "}}",
     Data.
 
