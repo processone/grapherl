@@ -7,6 +7,7 @@ sidebar =
 
 
   _init: ->
+    @options.display = 'client'
     @_bind_sidebar_events()
     if @options.data?
       $(document).trigger("ui.update_sideBar", [@options.data])
@@ -54,6 +55,16 @@ sidebar =
             $.event.trigger('ui.update_sideBar', [data.metric_list])
         )
 
+    @element.find("#sb-disp-client").on "click", (e) =>
+      @options.display = 'client'
+      $(document).trigger("ui.update_sideBar", [@options.data])
+    
+
+    @element.find("#sb-disp-metric").on "click", (e) =>
+      @options.display = 'metric'
+      $(document).trigger("ui.update_sideBar", [@options.data])
+
+
     SideBarRefresh = =>
       @element.find("#sidebar-refresh").click()
     setInterval(SideBarRefresh, 60000);
@@ -86,13 +97,30 @@ sidebar =
 
   _add_sidebar_elements: (Data) ->
     List = @element.find("#active-metrics")
-    $.each Data, (Metric, Value) =>
-      List.append("""
-        <li title="#{Metric}" class="metric disabled">
-          <a href="#" style="text-align: center;">#{Metric}</a>
-        </li> """)
-      for Client in Value
-        List.append(UI.sideBar_li(Metric, Client))
+    Data2 = {}
+
+    if @options.display == "client"
+      # convert from metric -> client to client -> metric
+      for Metric, Clients of Data
+        for Client in Clients
+          if Data2[Client]? then Data2[Client].push(Metric) else Data2[Client] = [Metric]
+
+      $.each Data2, (Client, Metrics) =>
+        List.append("""
+          <li title="#{Client}" class="metric disabled">
+            <a href="#" style="text-align: center;">#{Client}</a>
+          </li> """)
+        for Metric in Metrics
+          List.append(UI.sideBar_li(Metric, Client, Metric))
+
+    else
+      $.each Data, (Metric, Value) =>
+        List.append("""
+          <li title="#{Metric}" class="metric disabled">
+            <a href="#" style="text-align: center;">#{Metric}</a>
+          </li> """)
+        for Client in Value
+          List.append(UI.sideBar_li(Metric, Client, Client))
 
 
   _multi_selection: ->

@@ -927,8 +927,7 @@
   };
 
   get_active_metric = function() {
-    var MetricSideBar, Metrics;
-    Metrics = ["Metric 1", "Metric 2", "Metric 3", "Metric 4", "Metric 5", "Metric 6", "Metric 7", "Metric 8", "Metric 9"];
+    var MetricSideBar;
     MetricSideBar = UI.sideBar();
     return MetricSideBar.sidebar();
   };
@@ -987,10 +986,10 @@
     sideBar_metricList: function() {
       return $("#active-metrics");
     },
-    sideBar_li: function(Metric, Client) {
+    sideBar_li: function(Metric, Client, Disp) {
       var Id;
       Id = graph_utils.generate_id();
-      return "<li title=\"" + Client + "\" data-metric=\"" + Metric + "\" data-client=\"" + Client + "\"\n  class=\"client\" id=\"" + Id + "\">\n  <a href=\"#\" style=\"padding: 5px;\">  " + Client + "</a>\n</li> ";
+      return "<li title=\"" + Client + "\" data-metric=\"" + Metric + "\" data-client=\"" + Client + "\"\n  class=\"client\" id=\"" + Id + "\">\n  <a href=\"#\" style=\"padding: 5px;\">  " + Disp + "</a>\n</li> ";
     },
     graphDiv: function() {
       return $("#graphDiv");
@@ -1041,6 +1040,7 @@
       return false;
     },
     _init: function() {
+      this.options.display = 'client';
       this._bind_sidebar_events();
       if (this.options.data != null) {
         $(document).trigger("ui.update_sideBar", [this.options.data]);
@@ -1102,6 +1102,18 @@
           });
         };
       })(this));
+      this.element.find("#sb-disp-client").on("click", (function(_this) {
+        return function(e) {
+          _this.options.display = 'client';
+          return $(document).trigger("ui.update_sideBar", [_this.options.data]);
+        };
+      })(this));
+      this.element.find("#sb-disp-metric").on("click", (function(_this) {
+        return function(e) {
+          _this.options.display = 'metric';
+          return $(document).trigger("ui.update_sideBar", [_this.options.data]);
+        };
+      })(this));
       SideBarRefresh = (function(_this) {
         return function() {
           return _this.element.find("#sidebar-refresh").click();
@@ -1136,20 +1148,47 @@
       return this.element.find(".multi-selected").remove();
     },
     _add_sidebar_elements: function(Data) {
-      var List;
+      var Client, Clients, Data2, List, Metric, j, len;
       List = this.element.find("#active-metrics");
-      return $.each(Data, (function(_this) {
-        return function(Metric, Value) {
-          var Client, j, len, results;
-          List.append("<li title=\"" + Metric + "\" class=\"metric disabled\">\n  <a href=\"#\" style=\"text-align: center;\">" + Metric + "</a>\n</li> ");
-          results = [];
-          for (j = 0, len = Value.length; j < len; j++) {
-            Client = Value[j];
-            results.push(List.append(UI.sideBar_li(Metric, Client)));
+      Data2 = {};
+      if (this.options.display === "client") {
+        for (Metric in Data) {
+          Clients = Data[Metric];
+          for (j = 0, len = Clients.length; j < len; j++) {
+            Client = Clients[j];
+            if (Data2[Client] != null) {
+              Data2[Client].push(Metric);
+            } else {
+              Data2[Client] = [Metric];
+            }
           }
-          return results;
-        };
-      })(this));
+        }
+        return $.each(Data2, (function(_this) {
+          return function(Client, Metrics) {
+            var k, len1, results;
+            List.append("<li title=\"" + Client + "\" class=\"metric disabled\">\n  <a href=\"#\" style=\"text-align: center;\">" + Client + "</a>\n</li> ");
+            results = [];
+            for (k = 0, len1 = Metrics.length; k < len1; k++) {
+              Metric = Metrics[k];
+              results.push(List.append(UI.sideBar_li(Metric, Client, Metric)));
+            }
+            return results;
+          };
+        })(this));
+      } else {
+        return $.each(Data, (function(_this) {
+          return function(Metric, Value) {
+            var k, len1, results;
+            List.append("<li title=\"" + Metric + "\" class=\"metric disabled\">\n  <a href=\"#\" style=\"text-align: center;\">" + Metric + "</a>\n</li> ");
+            results = [];
+            for (k = 0, len1 = Value.length; k < len1; k++) {
+              Client = Value[k];
+              results.push(List.append(UI.sideBar_li(Metric, Client, Client)));
+            }
+            return results;
+          };
+        })(this));
+      }
     },
     _multi_selection: function() {
       this.options.selected = [];

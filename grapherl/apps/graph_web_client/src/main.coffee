@@ -28,18 +28,17 @@ init_app = ->
 
 get_active_metric = ->
   # TODO send ajax request to server get list of active metric
-  Metrics = [
-    "Metric 1",
-    "Metric 2",
-    "Metric 3",
-    "Metric 4",
-    "Metric 5",
-    "Metric 6",
-    "Metric 7",
-    "Metric 8",
-    "Metric 9"
-    ]
-
+  # Metrics = [
+  #   "Metric 1",
+  #   "Metric 2",
+  #   "Metric 3",
+  #   "Metric 4",
+  #   "Metric 5",
+  #   "Metric 6",
+  #   "Metric 7",
+  #   "Metric 8",
+  #   "Metric 9"
+  #   ]
   # $.ajax(
   #   method: "GET"
   #   url   : "/metric/list"

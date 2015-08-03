@@ -93,11 +93,27 @@
       <div id="sidebar" class="sidebar-offcanvas">
         <div class="col-md-12">
           <br>
-          <span style="font-size:16px;">Active Metrics
-            <i id="sidebar-refresh" class="fa fa-refresh pull-right" style="font-size: 14px; cursor: pointer; padding-top: 2px;"></i>
+          <span style="font-size:16px;">
+            <!-- <span id="change-sidebar-view">
+            Active Metrics
+            <i id="id" class="fa fa-angle-down" style="font-size: 14px; cursor: pointer; padding-top: 2px;"></i> -->
+
+            <span class="dropdown">
+              <span class="dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown"
+                    aria-haspopup="true" aria-expanded="true" style="cursor: pointer;">
+                Active Metrics <span class="caret"></span>
+              </span>
+              <ul class="dropdown-menu" aria-labelledby="dropdownMenu1">
+                <li id="sb-disp-metric"><a href="#">Display by metric</a></li>
+                <li id="sb-disp-client"><a href="#">Display by client</a></li>
+              </ul>
+            </span>
+
           </span>
-          <hr class="seperator">
-          <ul class="nav nav-pills nav-stacked" id="active-metrics" style="overflow: hidden"> </ul>
+          <i id="sidebar-refresh" class="fa fa-refresh pull-right" style="font-size: 14px; cursor: pointer; padding-top: 2px;"></i>
+            </span>
+            <hr class="seperator">
+            <ul class="nav nav-pills nav-stacked" id="active-metrics" style="overflow: hidden"> </ul>
         </div>
       </div>
 
@@ -119,14 +135,6 @@
 
           <!-- <div class="row"> <div class="col-sm-offset-1 col-md-10" > <div id="c3Frame0"></div> </div> </div>
           <div class="row"> <div class="col-sm-offset-1 col-md-10" > <div id="c3Frame1"></div> </div> </div> -->
-
-
-          <!-- <div class="row"> <div class=" col-md-12" > <div id="c3Frame2"><div> </div> </div> -->
-          <!-- <div class="row"> <div class=" col-md-12" > <div id="c3Frame3"><div> </div> </div> -->
-          <!-- <div class="row"> <div class=" col-md-12" > <div id="c3Frame4"><div> </div> </div> -->
-          <!-- <div class="row"> <div class=" col-md-12" > <div id="c3Frame5"><div> </div> </div> -->
-          <!-- <div class="row"> <div class=" col-md-12" > <div id="c3Frame6"><div> </div> </div> -->
-          <!-- <div class="row"> <div class=" col-md-12" > <div id="c3Frame7"><div> </div> </div> -->
 
         </div>
       </div><!--/row-offcanvas -->

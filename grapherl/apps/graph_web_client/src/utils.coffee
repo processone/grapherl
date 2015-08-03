@@ -52,12 +52,12 @@ UI =
 
 
   # elements in global sidebar
-  sideBar_li : (Metric, Client) ->
+  sideBar_li : (Metric, Client, Disp) ->
     Id = graph_utils.generate_id()
     return """
       <li title="#{Client}" data-metric="#{Metric}" data-client="#{Client}"
         class="client" id="#{Id}">
-        <a href="#" style="padding: 5px;">  #{Client}</a>
+        <a href="#" style="padding: 5px;">  #{Disp}</a>
       </li> """
 
   graphDiv : ->
