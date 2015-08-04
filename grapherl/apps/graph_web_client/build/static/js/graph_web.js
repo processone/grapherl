@@ -9,6 +9,7 @@
       this._super();
       this.options.moreYaxis = false;
       this.options.max_x_labels = this.options.split === true ? 5 : 10;
+      this.options.y_format = "";
       return this.append_configrations();
     },
     append_configrations: function() {
@@ -22,7 +23,7 @@
         container: this.element,
         content: (function(_this) {
           return function() {
-            return $(c3_utils.chart_config(_this.options.data)).html();
+            return $(c3_utils.chart_config(_this.options)).html();
           };
         })(this)
       });
@@ -56,9 +57,23 @@
               return Form.find("#metric_select").prop('disabled', true);
             }
           });
+          Form.find("#format_y_axis").on("change", function(e) {
+            if (Form.find("#format_y_axis").children(":selected").attr("value") === 'custom') {
+              return Form.find("#custom_y_format").css('display', 'inline-block');
+            } else {
+              return Form.find("#custom_y_format").hide();
+            }
+          });
           return Form.on("submit", function(e) {
-            var Id, Val;
+            var CustomFormat, Id, Val;
             e.preventDefault();
+            Val = Form.find("#format_y_axis").children(":selected").attr("value");
+            if (Val === "custom") {
+              CustomFormat = Form.find("#custom_y_format").val();
+              _this.options.y_fromat = CustomFormat;
+            } else {
+              _this.options.y_format = Val;
+            }
             Toolbar.find("[data-toggle=config-chart-popover]").popover('hide');
             if (Form.find("#add_grid_x").is(":checked")) {
               _this.options.xgrid = true;
@@ -101,7 +116,7 @@
       })(this));
     },
     render_chart: function(Type) {
-      var Args, Client, Clients, Columns, D, Data, Id, Metric, Options, X, Xs, chart, ref, ref1;
+      var Args, Client, Clients, Columns, D, Data, Id, Metric, Options, X, Xs, YFormat, chart, ref, ref1;
       if (Type == null) {
         Type = "line";
       }
@@ -131,6 +146,7 @@
         Options.axes[this.options.moreYaxis] = 'y2';
       }
       Id = this.element.find(".chart").attr('id');
+      YFormat = this.options.y_format === "data_size" ? c3_utils.bytesToString : d3.format(this.options.y_format);
       Args = {
         bindto: "#" + Id,
         data: Options,
@@ -148,6 +164,15 @@
               culling: {
                 max: this.options.max_x_labels
               }
+            }
+          },
+          y: {
+            tick: {
+              format: (function(_this) {
+                return function(d) {
+                  return YFormat(d);
+                };
+              })(this)
             }
           },
           rotated: false
@@ -244,6 +269,21 @@
     to_data_label: function(Client, Metric) {
       return Client + "-" + Metric;
     },
+    bytesToString: function(bytes) {
+      var fmt;
+      fmt = d3.format('.0f');
+      if (bytes < 1024) {
+        return fmt(bytes) + 'B';
+      } else if (bytes < 1024 * 1024) {
+        return fmt(bytes / 1024) + 'kB';
+      } else if (bytes < 1024 * 1024 * 1024) {
+        return fmt(bytes / 1024 / 1024) + 'MB';
+      } else if (bytes < 1024 * 1024 * 1024 * 1024) {
+        return fmt(bytes / 1024 / 1024 / 1024) + 'GB';
+      } else {
+        return fmt(bytes / 1024 / 1024 / 1024 / 1024) + 'TB';
+      }
+    },
     data_to_c3: function(Metric, Client, Data) {
       var D, Label, NewData, Value, X;
       X = "x-" + Metric + '-' + Client;
@@ -262,8 +302,9 @@
       };
       return [NewData, X, D];
     },
-    chart_config: function(Data) {
-      var Client, Clients, Id, List, Metric, Option, Val;
+    chart_config: function(Opts) {
+      var Client, Clients, Data, FS, FormatStyles, Id, Key, List, Metric, Option, Val;
+      Data = Opts.data;
       List = "";
       for (Metric in Data) {
         Clients = Data[Metric];
@@ -274,7 +315,24 @@
           List = List.concat(Option);
         }
       }
-      return "<div class=\"hide\">\n  <form class=\"form\" role=\"form\" id=\"chart-config\">\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"add_axis\" type=\"checkbox\" value=\"\">\n          Additional Y axis for\n        </label>\n      </div>\n      <select class=\"form-control\" id=\"metric_select\">\n        " + List + "\n      </select>\n    </div>\n\n    <div class=\"form-group\">\n      <div> <label> Grids :</label>\n        <input id=\"add_grid_x\" type=\"checkbox\" value=\"\"> X grid \n        <input id=\"add_grid_y\" type=\"checkbox\" value=\"\"> Y grid\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label>\n          <input id=\"rotate_axis\" type=\"checkbox\" value=\"\">\n          Rotate axis\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"subchart\" type=\"checkbox\" value=\"\">\n          Subchart display\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label> Max x-axis labels\n          <input id=\"max_x_labels\" type=\"number\" min=1>\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <button type=\"submit\" class=\"btn btn-primary\">Submit »</button>\n    </div>\n  </form>\n</div> ";
+      FS = "";
+      FormatStyles = {
+        "None": "",
+        "Currency": "$,",
+        "Percentage": ".2%",
+        "Data size": "data_size",
+        "Float": ".3g"
+      };
+      for (Key in FormatStyles) {
+        Val = FormatStyles[Key];
+        if (Opts.y_format === Val) {
+          FS = FS.concat(" <option value=\"" + Val + "\" selected> " + Key + " </option> ");
+        } else {
+          FS = FS.concat(" <option value=\"" + Val + "\"> " + Key + "</option> ");
+        }
+      }
+      FS = FS.concat(" <option value=\"custom\"> Custom </option> ");
+      return "<div class=\"hide\">\n  <form class=\"form\" role=\"form\" id=\"chart-config\">\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"add_axis\" type=\"checkbox\" value=\"\">\n          Additional Y axis for\n        </label>\n      </div>\n      <select class=\"form-control\" id=\"metric_select\" style=\"width: 90%; margin-left: 20px;\">\n        " + List + "\n      </select>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\"> <label> Grids :</label>\n        <span> X grid: </span>\n        <span> <input id=\"add_grid_x\" type=\"checkbox\" value=\"\"\n         style=\"margin-left: 0px;\"> </span>\n\n        <span style=\"margin-left: 20px;\"> Y grid: </span>\n        <span> <input id=\"add_grid_y\" type=\"checkbox\" value=\"\"\n         style=\"margin-left: 5px;\"> </span>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label>\n          <input id=\"rotate_axis\" type=\"checkbox\" value=\"\">\n          Rotate axis\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"subchart\" type=\"checkbox\" value=\"\">\n          Subchart display\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label> Max X axis labels </label>\n          <input id=\"max_x_labels\" class=\"form-control\" type=\"number\" min=1\n          style=\"display: inline; margin-left: 10px; width: 30%;\">\n\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label> Y axis label format </label>\n      </div>\n      <div class=\"checkbox\" style=\"padding-left: 20px;\">\n        <select class=\"form-control\" id=\"format_y_axis\"\n        style=\"display: inline; width: 40%;\">\n          " + FS + "\n        </select>\n        <input id=\"custom_y_format\" class=\"form-control\" placeholder=\"Format\"\n        style=\"display: none; max-width: 40%;\">\n        <a onclick=\"window.open('http://koaning.s3-website-us-west-2.amazonaws.com/html/d3format.html', '_blank').focus()\"\n         style=\"font-size: small; cursor: pointer;\"> Help </a>\n      </div>\n\n\n    </div>\n\n    <div class=\"form-group\" style=\"padding-left: 20px;\">\n      <button type=\"submit\" class=\"btn btn-primary\">Submit »</button>\n    </div>\n  </form>\n</div> ";
     }
   };
 

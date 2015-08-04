@@ -11,6 +11,7 @@ c3_chartify =
     @_super()
     @options.moreYaxis = false
     @options.max_x_labels = if @options.split == true then 5 else 10
+    @options.y_format = ""
     @append_configrations()
 
   append_configrations: ->
@@ -27,7 +28,7 @@ c3_chartify =
       placement: 'right'
       container: @element
       content: =>
-        return $(c3_utils.chart_config(@options.data)).html()
+        return $(c3_utils.chart_config(@options)).html()
     })
 
     Toolbar.find("[data-toggle=config-chart-popover]").on "shown.bs.popover", =>
@@ -54,8 +55,25 @@ c3_chartify =
         else
           Form.find("#metric_select").prop('disabled', true)
 
+      Form.find("#format_y_axis").on "change", (e) =>
+        if Form.find("#format_y_axis").children(":selected").attr("value") == 'custom'
+          Form.find("#custom_y_format").css('display', 'inline-block')
+        else          
+          Form.find("#custom_y_format").hide()
+
+
+
       Form.on "submit", (e) =>
         e.preventDefault()
+        # extract format
+        Val = Form.find("#format_y_axis").children(":selected").attr("value")
+        if Val == "custom"
+          CustomFormat = Form.find("#custom_y_format").val()
+          @options.y_fromat = CustomFormat
+        else
+          @options.y_format = Val
+
+
         Toolbar.find("[data-toggle=config-chart-popover]").popover('hide')
 
         if Form.find("#add_grid_x").is(":checked") then @options.xgrid = true else @options.xgrid = false
@@ -76,6 +94,7 @@ c3_chartify =
         else
           @options.moreYaxis = false
           @render_chart()
+
 
 
 
@@ -100,8 +119,16 @@ c3_chartify =
       axes: {}
 
     if @options.moreYaxis != false then Options.axes[@options.moreYaxis] = 'y2'
-
     Id = @element.find(".chart").attr('id')
+
+
+    YFormat =
+      if @options.y_format == "data_size"
+        c3_utils.bytesToString
+      else
+        d3.format(@options.y_format)
+      
+
     Args =
       bindto: "##{Id}"
       data  : Options 
@@ -118,6 +145,11 @@ c3_chartify =
             format: '%m-%d %H:%M:%S'
             culling:
               max  : @options.max_x_labels
+
+        y:
+          tick:
+            format: (d) =>
+              return YFormat(d)
 
         rotated: false
 
@@ -212,6 +244,22 @@ c3_utils =
   to_data_label: (Client, Metric) ->
     return Client + "-" + Metric
 
+  # taken from stackoverflow (muscially_ut)
+  bytesToString: (bytes) ->
+    fmt = d3.format('.0f')
+    if bytes < 1024
+      return fmt(bytes) + 'B'
+    else if bytes < 1024 * 1024
+      return fmt(bytes / 1024) + 'kB'
+    else if bytes < 1024 * 1024 * 1024
+      return fmt(bytes / 1024 / 1024) + 'MB'
+    else if bytes < 1024 * 1024 * 1024 * 1024
+      return fmt(bytes / 1024 / 1024 / 1024) + 'GB'
+    else
+      return fmt(bytes / 1024 / 1024 / 1024 /1024 ) + 'TB'
+
+
+
   data_to_c3: (Metric, Client, Data) ->
     X      = "x-" + Metric + '-' + Client
     #D      = Client + "-" + Metric
@@ -229,13 +277,30 @@ c3_utils =
 
     return [NewData, X, D]
 
-  chart_config: (Data) ->
+  chart_config: (Opts) ->
+    Data = Opts.data
     List = ""
     for Metric, Clients of Data
       for Client, Val of Clients
         Id = c3_utils.to_data_label(Client, Metric)
         Option = """ <option id="#{Id}">#{Metric} #{Client}</option> """
         List = List.concat(Option)
+
+    FS = ""
+    FormatStyles =
+      "None"      : ""
+      "Currency"  : "$,"
+      "Percentage": ".2%"
+      "Data size" : "data_size"
+      "Float"     : ".3g"
+
+    for Key, Val of FormatStyles 
+      if Opts.y_format == Val
+        FS = FS.concat(""" <option value="#{Val}" selected> #{Key} </option> """)
+      else
+        FS = FS.concat(""" <option value="#{Val}"> #{Key}</option> """)
+
+    FS = FS.concat(""" <option value="custom"> Custom </option> """)
 
     return """
       <div class="hide">
@@ -246,15 +311,20 @@ c3_utils =
                 Additional Y axis for
               </label>
             </div>
-            <select class="form-control" id="metric_select">
+            <select class="form-control" id="metric_select" style="width: 90%; margin-left: 20px;">
               #{List}
             </select>
           </div>
 
           <div class="form-group">
-            <div> <label> Grids :</label>
-              <input id="add_grid_x" type="checkbox" value=""> X grid 
-              <input id="add_grid_y" type="checkbox" value=""> Y grid
+            <div class="checkbox"> <label> Grids :</label>
+              <span> X grid: </span>
+              <span> <input id="add_grid_x" type="checkbox" value=""
+               style="margin-left: 0px;"> </span>
+
+              <span style="margin-left: 20px;"> Y grid: </span>
+              <span> <input id="add_grid_y" type="checkbox" value=""
+               style="margin-left: 5px;"> </span>
             </div>
           </div>
 
@@ -277,13 +347,32 @@ c3_utils =
 
           <div class="form-group">
             <div class="checkbox">
-              <label> Max x-axis labels
-                <input id="max_x_labels" type="number" min=1>
-              </label>
+              <label> Max X axis labels </label>
+                <input id="max_x_labels" class="form-control" type="number" min=1
+                style="display: inline; margin-left: 10px; width: 30%;">
+
             </div>
           </div>
 
           <div class="form-group">
+            <div class="checkbox">
+              <label> Y axis label format </label>
+            </div>
+            <div class="checkbox" style="padding-left: 20px;">
+              <select class="form-control" id="format_y_axis"
+              style="display: inline; width: 40%;">
+                #{FS}
+              </select>
+              <input id="custom_y_format" class="form-control" placeholder="Format"
+              style="display: none; max-width: 40%;">
+              <a onclick="window.open('http://koaning.s3-website-us-west-2.amazonaws.com/html/d3format.html', '_blank').focus()"
+               style="font-size: small; cursor: pointer;"> Help </a>
+            </div>
+
+
+          </div>
+
+          <div class="form-group" style="padding-left: 20px;">
             <button type="submit" class="btn btn-primary">Submit »</button>
           </div>
         </form>
