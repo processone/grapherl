@@ -294,7 +294,7 @@
       $.each(Data, (function(_this) {
         return function(Key, Val) {
           Label.push(moment(Key * 1000).toDate());
-          return Value.push(parseFloat(Val) * 1000000);
+          return Value.push(parseFloat(Val));
         };
       })(this));
       NewData = {
@@ -674,7 +674,7 @@
           'This Month': [moment().startOf('month'), moment().endOf('month')],
           'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
         },
-        opens: 'right',
+        opens: 'center',
         drops: 'down',
         buttonClasses: ['btn', 'btn-sm'],
         applyClass: 'btn-primary',
