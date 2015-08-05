@@ -84,6 +84,13 @@
             </span>
           </li>
 
+          <li id="bookmarkWindow" title="Bookmark window display">
+            <span class="fa-stack fa-lg" style="color: #f44336; ">
+              <i class="fa fa-circle fa-stack-2x"></i>
+              <i class="fa fa-bookmark fa-stack-1x fa-inverse"></i>
+            </span>
+          </li>
+
           <!-- <li><a href="#contact">Contact</a></li> -->
         </ul>
       </div><!--/.nav-collapse -->
@@ -126,15 +133,23 @@
               <i class="glyphicon glyphicon-chevron-left"></i>
             </button>
           </p>
-
           <div class="row" style="margin: 10px;"> </div>
+          <div class="row" style="margin-bottom: 10px;" id="prev_dashboard">
+            <div class="col-md-12" >
+              <div class="pull-right">
+		<a class='btn btn-default' href='javascript:;'>
+	          <i class="fa fa-upload"></i> Load dashboard
 
-          <div class="row"> <div class=" col-md-12" > <div id="c3Frame0"></div> </div> </div>
-          <div class="row"> <div class=" col-md-12" > <div id="c3Frame1"></div> </div> </div>
-
-
-          <!-- <div class="row"> <div class="col-sm-offset-1 col-md-10" > <div id="c3Frame0"></div> </div> </div>
-          <div class="row"> <div class="col-sm-offset-1 col-md-10" > <div id="c3Frame1"></div> </div> </div> -->
+	          <input type="file" style='position:absolute; top:0; width: 130px;
+                                            opacity:0; background-color:transparent;
+                                            color:transparent;'
+                         name="file_source" id="load-bookmark"  >
+		</a>
+	        <i class="fa fa-remove" onclick="$('#prev_dashboard').remove()" 
+                   style="z-index:3; color: gray; cursor: pointer;"></i>
+	      </div>
+            </div>
+          </div>
 
         </div>
       </div><!--/row-offcanvas -->

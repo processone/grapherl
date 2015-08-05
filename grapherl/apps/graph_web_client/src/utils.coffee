@@ -5,15 +5,55 @@ graph_utils =
   add_display: (MetricData) ->
     GraphFrame   = $(UI.graphDiv())
     NewDisplay   = $(UI.graphNew())
-    NewDisplay.find("#display").chartify({data: MetricData})
+    NewDisplay.find("#display").chartify(MetricData)
     GraphFrame.append(NewDisplay)
 
-  add_split_display: ->
+  add_split_display: (Data = undefined) ->
     GraphFrame   = $(UI.graphDiv())
     NewDisplay   = $(UI.graphNewSplit())
-    NewDisplay.find("#display").chartify({split: true})
+    if Data == undefined
+      NewDisplay.find("#display").chartify({split: true})
+    else
+      Disp = NewDisplay.find("#display")
+      Data[0].split = true
+      Data[1].split = true
+      $(Disp[0]).chartify(Data[0])
+      $(Disp[1]).chartify(Data[1])
+      
     GraphFrame.append(NewDisplay)
     return GraphFrame
+
+  save_display: ->
+    Rows = $(UI.graphDiv()).find(".row")
+    Layout = []
+    for Row in Rows
+      Displays = $(Row).find(".chartified")
+      Block = []
+      for Display in Displays
+        Block.push($(Display).chartify("bookmark"))
+      if Block[0] != undefined then Layout.push(Block)
+
+    Obj = JSON.stringify(Layout)
+    Encoded = window.btoa(Obj)
+    $("#bookmark_download").remove()
+    Ele = $("
+      <a id='bookmark_download' download='grapherl_display_bookmark.dat'
+       href='data:application/octet-stream;charset=utf-8;base64,#{Encoded}'
+      style='display:none;'></a>")
+    $(UI.graphDiv()).append(Ele)
+    document.getElementById('bookmark_download').click();
+
+
+  # load bookmarked display
+  load_display: (Layout) ->
+    console.log Layout
+    for Row in Layout
+      if Row.length == 1
+        graph_utils.add_display(Row[0])
+      else if Row.length == 2
+        graph_utils.add_split_display(Row)
+
+
 
   get_interval: (Granularity) ->
     if Granularity == graph_utils.granularity.sec
@@ -65,18 +105,25 @@ UI =
 
 
   graphNew : ->
+    Id = graph_utils.generate_id()
     return """
       <div class="row">
-        <div class="col-md-12" id="display" ></div>
+        <div class="col-md-12 chartified" data-chart-name="#{Id}" id="display" >
+
+        </div>
       </div> """
+          # <div id="display" ></div>
 
 
   graphNewSplit : ->
+    Id1 = graph_utils.generate_id()
+    Id2 = graph_utils.generate_id()
     return """
       <div class="row" >
-        <div class="col-md-6" > <div id="display"></div> </div>
-        <div class="col-md-6" > <div id="display"></div> </div>
+        <div class="col-md-6 chartified" data-chart-name="#{Id1}" id="display" > </div>
+        <div class="col-md-6 chartified" data-chart-name="#{Id2}" id="display" > </div>
       </div> """
+  # <div class="col-md-6 chartified" > <div id="display"></div> </div>
 
   graphDisplayC3: (DispId, ChartId) ->
     Frame = $(UI.graphFrame(DispId))

@@ -7,9 +7,10 @@
     },
     _init: function() {
       this._super();
-      this.options.moreYaxis = false;
-      this.options.max_x_labels = this.options.split === true ? 5 : 10;
-      this.options.y_format = "";
+      this.options.config = {};
+      this.options.config.moreYaxis = false;
+      this.options.config.max_x_labels = this.options.split === true ? 5 : 10;
+      this.options.config.y_format = "";
       return this.append_configrations();
     },
     append_configrations: function() {
@@ -31,25 +32,25 @@
         return function() {
           var Form;
           Form = _this.element.find(".popover").find("#chart-config");
-          if (_this.options.moreYaxis === false) {
+          if (_this.options.config.moreYaxis === false) {
             Form.find("#metric_select").prop('disabled', true);
           } else {
             Form.find("#add_axis").prop("checked", true);
-            Form.find("#metric_select").find("#" + _this.options.moreYaxis).attr('selected', true);
+            Form.find("#metric_select").find("#" + _this.options.config.moreYaxis).attr('selected', true);
           }
-          if (_this.options.xgrid === true) {
+          if (_this.options.config.xgrid === true) {
             Form.find("#add_grid_x").prop("checked", true);
           }
-          if (_this.options.ygrid === true) {
+          if (_this.options.config.ygrid === true) {
             Form.find("#add_grid_y").prop("checked", true);
           }
-          if (_this.options.rotateAxis === true) {
+          if (_this.options.config.rotateAxis === true) {
             Form.find("#rotate_axis").prop("checked", true);
           }
-          if (_this.options.subchart === true) {
+          if (_this.options.config.subchart === true) {
             Form.find("#subchart").prop("checked", true);
           }
-          Form.find("#max_x_labels").val(_this.options.max_x_labels);
+          Form.find("#max_x_labels").val(_this.options.config.max_x_labels);
           Form.find("#add_axis").on("click", function(e) {
             if (Form.find("#add_axis").is(":checked")) {
               return Form.find("#metric_select").prop('disabled', false);
@@ -70,45 +71,45 @@
             Val = Form.find("#format_y_axis").children(":selected").attr("value");
             if (Val === "custom") {
               CustomFormat = Form.find("#custom_y_format").val();
-              _this.options.y_fromat = CustomFormat;
+              _this.options.config.y_format = CustomFormat;
             } else {
-              _this.options.y_format = Val;
+              _this.options.config.y_format = Val;
             }
             Toolbar.find("[data-toggle=config-chart-popover]").popover('hide');
             if (Form.find("#add_grid_x").is(":checked")) {
-              _this.options.xgrid = true;
+              _this.options.config.xgrid = true;
             } else {
-              _this.options.xgrid = false;
+              _this.options.config.xgrid = false;
             }
             if (Form.find("#add_grid_y").is(":checked")) {
-              _this.options.ygrid = true;
+              _this.options.config.ygrid = true;
             } else {
-              _this.options.ygrid = false;
+              _this.options.config.ygrid = false;
             }
             if (Form.find("#rotate_axis").is(":checked")) {
-              _this.options.rotateAxis = true;
+              _this.options.config.rotateAxis = true;
             } else {
-              _this.options.rotateAxis = false;
+              _this.options.config.rotateAxis = false;
             }
             if (Form.find("#subchart").is(":checked")) {
-              _this.options.subchart = true;
+              _this.options.config.subchart = true;
             } else {
-              _this.options.subchart = false;
+              _this.options.config.subchart = false;
             }
             Val = parseInt(Form.find("#max_x_labels").val());
             if (Number.isInteger(Val) === true) {
-              _this.options.max_x_labels = Val;
+              _this.options.config.max_x_labels = Val;
             }
             if (Form.find("#add_axis").is(":checked")) {
               Id = Form.find("#metric_select").children(":selected").attr("id");
               if (Id === void 0) {
-                return _this.options.moreYaxis = false;
+                return _this.options.config.moreYaxis = false;
               } else {
-                _this.options.moreYaxis = Id;
+                _this.options.config.moreYaxis = Id;
                 return _this.render_chart();
               }
             } else {
-              _this.options.moreYaxis = false;
+              _this.options.config.moreYaxis = false;
               return _this.render_chart();
             }
           });
@@ -142,11 +143,11 @@
         type: 'spline',
         axes: {}
       };
-      if (this.options.moreYaxis !== false) {
-        Options.axes[this.options.moreYaxis] = 'y2';
+      if (this.options.config.moreYaxis !== false) {
+        Options.axes[this.options.config.moreYaxis] = 'y2';
       }
       Id = this.element.find(".chart").attr('id');
-      YFormat = this.options.y_format === "data_size" ? c3_utils.bytesToString : d3.format(this.options.y_format);
+      YFormat = this.options.config.y_format === "data_size" ? c3_utils.bytesToString : d3.format(this.options.config.y_format);
       Args = {
         bindto: "#" + Id,
         data: Options,
@@ -162,7 +163,7 @@
             tick: {
               format: '%m-%d %H:%M:%S',
               culling: {
-                max: this.options.max_x_labels
+                max: this.options.config.max_x_labels
               }
             }
           },
@@ -189,21 +190,21 @@
           show: false
         }
       };
-      if (this.options.moreYaxis !== false) {
+      if (this.options.config.moreYaxis !== false) {
         Args.axis['y2'] = {
           show: true
         };
       }
-      if (this.options.xgrid === true) {
+      if (this.options.config.xgrid === true) {
         Args.grid.x.show = true;
       }
-      if (this.options.ygrid === true) {
+      if (this.options.config.ygrid === true) {
         Args.grid.y.show = true;
       }
-      if (this.options.rotateAxis === true) {
+      if (this.options.config.rotateAxis === true) {
         Args.axis.rotated = true;
       }
-      if (this.options.subchart === true) {
+      if (this.options.config.subchart === true) {
         Args.subchart.show = true;
       }
       chart = c3.generate(Args);
@@ -293,7 +294,7 @@
       $.each(Data, (function(_this) {
         return function(Key, Val) {
           Label.push(moment(Key * 1000).toDate());
-          return Value.push(parseFloat(Val));
+          return Value.push(parseFloat(Val) * 1000000);
         };
       })(this));
       NewData = {
@@ -325,7 +326,7 @@
       };
       for (Key in FormatStyles) {
         Val = FormatStyles[Key];
-        if (Opts.y_format === Val) {
+        if (Opts.config.y_format === Val) {
           FS = FS.concat(" <option value=\"" + Val + "\" selected> " + Key + " </option> ");
         } else {
           FS = FS.concat(" <option value=\"" + Val + "\"> " + Key + "</option> ");
@@ -344,16 +345,21 @@
       this._init_ui();
       this._init_toolbar();
       this._toolbar_events();
-      this.options.live = false;
+      if (this.options.live == null) {
+        this.options.live = false;
+      }
       if (this.options.granularity == null) {
         this.options.granularity = graph_utils.granularity.min;
       }
-      this.options.interval = 60000;
-      console.log("inside _init dashboard", this.options.data);
+      if (!this.options.interval) {
+        this.options.interval = 60000;
+      }
+      if (this.options.live === true) {
+        this._go_live();
+      }
       if (this.options.data != null) {
         return $.each(this.options.data, (function(_this) {
           return function(Metric, Clients) {
-            console.log(Clients);
             return $.each(Clients, function(Client, Data) {
               _this.get_data_from_daemon(Metric, Client);
               return delete _this.options.data[Metric][Client];
@@ -458,15 +464,8 @@
       })(this));
       Toolbar.find("#update_metrics i.live").on("click.update", (function(_this) {
         return function() {
-          var Fun, Interval;
           if (_this.options.live === false) {
-            Fun = function() {
-              _this.element.find("#range_picker").data('daterangepicker').setEndDate(moment());
-              return _this.update_all_metrics();
-            };
-            Interval = setInterval(Fun, _this.options.interval);
-            _this.options.live = Interval;
-            return Toolbar.find("#update_metrics").find("a i.live").css("color", "#f44336");
+            return _this._go_live();
           } else {
             clearInterval(_this.options.live);
             _this.options.live = false;
@@ -511,6 +510,42 @@
         };
       })(this));
       return this.options.toolbar = Toolbar;
+    },
+    _go_live: function() {
+      var Fun, Interval;
+      Fun = (function(_this) {
+        return function() {
+          _this.element.find("#range_picker").data('daterangepicker').setEndDate(moment());
+          return _this.update_all_metrics();
+        };
+      })(this);
+      Interval = setInterval(Fun, this.options.interval);
+      this.options.live = Interval;
+      this.options.toolbar.find("#update_metrics").find("a i.live").css("color", "#f44336");
+      return false;
+    },
+    bookmark: function() {
+      var Client, Clients, Data, Metric, State, d, ref;
+      Data = {};
+      ref = this.options.data;
+      for (Metric in ref) {
+        Clients = ref[Metric];
+        Data[Metric] = {};
+        for (Client in Clients) {
+          d = Clients[Client];
+          Data[Metric][Client] = {
+            data: []
+          };
+        }
+      }
+      State = {
+        config: this.options.config,
+        granularity: this.options.granularity,
+        interval: this.options.interval,
+        live: this.options.live,
+        data: Data
+      };
+      return State;
     },
     toggle_add_button: function(State) {
       if (State == null) {
@@ -998,20 +1033,68 @@
       var GraphFrame, NewDisplay;
       GraphFrame = $(UI.graphDiv());
       NewDisplay = $(UI.graphNew());
-      NewDisplay.find("#display").chartify({
-        data: MetricData
-      });
+      NewDisplay.find("#display").chartify(MetricData);
       return GraphFrame.append(NewDisplay);
     },
-    add_split_display: function() {
-      var GraphFrame, NewDisplay;
+    add_split_display: function(Data) {
+      var Disp, GraphFrame, NewDisplay;
+      if (Data == null) {
+        Data = void 0;
+      }
       GraphFrame = $(UI.graphDiv());
       NewDisplay = $(UI.graphNewSplit());
-      NewDisplay.find("#display").chartify({
-        split: true
-      });
+      if (Data === void 0) {
+        NewDisplay.find("#display").chartify({
+          split: true
+        });
+      } else {
+        Disp = NewDisplay.find("#display");
+        Data[0].split = true;
+        Data[1].split = true;
+        $(Disp[0]).chartify(Data[0]);
+        $(Disp[1]).chartify(Data[1]);
+      }
       GraphFrame.append(NewDisplay);
       return GraphFrame;
+    },
+    save_display: function() {
+      var Block, Display, Displays, Ele, Encoded, Layout, Obj, Row, Rows, j, k, len, len1;
+      Rows = $(UI.graphDiv()).find(".row");
+      Layout = [];
+      for (j = 0, len = Rows.length; j < len; j++) {
+        Row = Rows[j];
+        Displays = $(Row).find(".chartified");
+        Block = [];
+        for (k = 0, len1 = Displays.length; k < len1; k++) {
+          Display = Displays[k];
+          Block.push($(Display).chartify("bookmark"));
+        }
+        if (Block[0] !== void 0) {
+          Layout.push(Block);
+        }
+      }
+      Obj = JSON.stringify(Layout);
+      Encoded = window.btoa(Obj);
+      $("#bookmark_download").remove();
+      Ele = $("<a id='bookmark_download' download='grapherl_display_bookmark.dat' href='data:application/octet-stream;charset=utf-8;base64," + Encoded + "' style='display:none;'></a>");
+      $(UI.graphDiv()).append(Ele);
+      return document.getElementById('bookmark_download').click();
+    },
+    load_display: function(Layout) {
+      var Row, j, len, results;
+      console.log(Layout);
+      results = [];
+      for (j = 0, len = Layout.length; j < len; j++) {
+        Row = Layout[j];
+        if (Row.length === 1) {
+          results.push(graph_utils.add_display(Row[0]));
+        } else if (Row.length === 2) {
+          results.push(graph_utils.add_split_display(Row));
+        } else {
+          results.push(void 0);
+        }
+      }
+      return results;
     },
     get_interval: function(Granularity) {
       if (Granularity === graph_utils.granularity.sec) {
@@ -1053,10 +1136,15 @@
       return $("#graphDiv");
     },
     graphNew: function() {
-      return "<div class=\"row\">\n  <div class=\"col-md-12\" id=\"display\" ></div>\n</div> ";
+      var Id;
+      Id = graph_utils.generate_id();
+      return "<div class=\"row\">\n  <div class=\"col-md-12 chartified\" data-chart-name=\"" + Id + "\" id=\"display\" >\n\n  </div>\n</div> ";
     },
     graphNewSplit: function() {
-      return "<div class=\"row\" >\n  <div class=\"col-md-6\" > <div id=\"display\"></div> </div>\n  <div class=\"col-md-6\" > <div id=\"display\"></div> </div>\n</div> ";
+      var Id1, Id2;
+      Id1 = graph_utils.generate_id();
+      Id2 = graph_utils.generate_id();
+      return "<div class=\"row\" >\n  <div class=\"col-md-6 chartified\" data-chart-name=\"" + Id1 + "\" id=\"display\" > </div>\n  <div class=\"col-md-6 chartified\" data-chart-name=\"" + Id2 + "\" id=\"display\" > </div>\n</div> ";
     },
     graphDisplayC3: function(DispId, ChartId) {
       var Frame, Id;
@@ -1193,7 +1281,9 @@
           Data[Metric][Client] = {
             data: []
           };
-          return graph_utils.add_display(Data);
+          return graph_utils.add_display({
+            data: Data
+          });
         };
       })(this));
     },
@@ -1274,9 +1364,27 @@
         return graph_utils.add_display();
       };
     })(this));
-    return GlobalToolbar.find("#addSplitDisplay").on("click", (function(_this) {
+    GlobalToolbar.find("#addSplitDisplay").on("click", (function(_this) {
       return function() {
         return graph_utils.add_split_display();
+      };
+    })(this));
+    GlobalToolbar.find("#bookmarkWindow").on("click", (function(_this) {
+      return function() {
+        return graph_utils.save_display();
+      };
+    })(this));
+    return $(UI.graphDiv()).find("#load-bookmark").on("change", (function(_this) {
+      return function(e) {
+        var Bookmark, fd;
+        Bookmark = e.target.files[0];
+        if (Bookmark) {
+          fd = new FileReader();
+          fd.onload = function(e) {
+            return graph_utils.load_display(JSON.parse(e.target.result));
+          };
+          return fd.readAsText(Bookmark);
+        }
       };
     })(this));
   };

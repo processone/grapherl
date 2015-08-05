@@ -81,7 +81,7 @@ sidebar =
       Data = {}
       Data[Metric] = {}
       Data[Metric][Client] = {data: []}
-      graph_utils.add_display(Data)
+      graph_utils.add_display({data: Data})
       # TODO trigger to update with display with the selected metric
 
 
@@ -147,3 +147,14 @@ init_global_buttons = ->
 
   GlobalToolbar.find("#addSplitDisplay").on "click", =>
     graph_utils.add_split_display()
+
+  GlobalToolbar.find("#bookmarkWindow").on "click", =>
+    graph_utils.save_display()
+
+  $(UI.graphDiv()).find("#load-bookmark").on "change", (e) =>
+    Bookmark = e.target.files[0]
+    if Bookmark
+      fd = new FileReader()
+      fd.onload = (e) ->
+        graph_utils.load_display(JSON.parse(e.target.result))
+      fd.readAsText(Bookmark)

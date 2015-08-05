@@ -6,17 +6,16 @@ dashboard =
     @_init_ui()
     @_init_toolbar()
     @_toolbar_events()
-
-
-    @options.live = false
+    if !@options.live?        then @options.live = false
     if !@options.granularity? then @options.granularity = graph_utils.granularity.min
-    @options.interval = 60000
+    if !@options.interval     then @options.interval = 60000
 
-    console.log "inside _init dashboard", @options.data
+    if @options.live == true then @_go_live()
+
+    #console.log "inside _init dashboard", @options.data
     if @options.data?
       #for Metric, Clients in @options.data
       $.each @options.data, (Metric, Clients) =>
-        console.log Clients
         $.each Clients, (Client, Data) =>
           @get_data_from_daemon(Metric, Client)
           delete @options.data[Metric][Client]
@@ -128,14 +127,14 @@ dashboard =
 
     Toolbar.find("#update_metrics i.live").on "click.update", =>
       if @options.live == false
-        Fun = =>
-          @element.find("#range_picker").data('daterangepicker').setEndDate(moment())
-          @update_all_metrics()
+        @_go_live()
+        # Fun = =>
+        #   @element.find("#range_picker").data('daterangepicker').setEndDate(moment())
+        #   @update_all_metrics()
 
-        #Interval = setInterval(Fun, graph_utils.get_interval(@options.granularity))
-        Interval      = setInterval(Fun, @options.interval)
-        @options.live = Interval
-        Toolbar.find("#update_metrics").find("a i.live").css("color", "#f44336")
+        # Interval      = setInterval(Fun, @options.interval)
+        # @options.live = Interval
+        # Toolbar.find("#update_metrics").find("a i.live").css("color", "#f44336")
       else
         clearInterval(@options.live)
         @options.live = false
@@ -173,9 +172,37 @@ dashboard =
           Toolbar.find("#update_metrics i.live").trigger "click.update"
 
 
-
     return @options.toolbar = Toolbar
 
+
+  _go_live: ->
+    Fun = =>
+      @element.find("#range_picker").data('daterangepicker').setEndDate(moment())
+      @update_all_metrics()
+
+    Interval      = setInterval(Fun, @options.interval)
+    @options.live = Interval
+    @options.toolbar.find("#update_metrics").find("a i.live").css("color", "#f44336")
+    return false
+
+
+  # return data to be stored
+  bookmark: ->
+    Data = {}
+    for Metric, Clients of @options.data
+      Data[Metric] = {}
+      for Client, d of Clients
+        Data[Metric][Client] = {data: []}
+
+    State =
+      config: @options.config
+      granularity: @options.granularity
+      interval: @options.interval
+      live : @options.live
+      data : Data
+
+    return State
+  
 
   # toogle metric selection button
   toggle_add_button: (State = false) ->

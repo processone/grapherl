@@ -9,9 +9,10 @@ c3_chartify =
 
   _init: ->
     @_super()
-    @options.moreYaxis = false
-    @options.max_x_labels = if @options.split == true then 5 else 10
-    @options.y_format = ""
+    @options.config = {}
+    @options.config.moreYaxis = false
+    @options.config.max_x_labels = if @options.split == true then 5 else 10
+    @options.config.y_format = ""
     @append_configrations()
 
   append_configrations: ->
@@ -35,18 +36,18 @@ c3_chartify =
       Form = @element.find(".popover").find("#chart-config")
 
       # check if the additional Y axis was added or not
-      if @options.moreYaxis == false
+      if @options.config.moreYaxis == false
         Form.find("#metric_select").prop('disabled', true)
       else
         Form.find("#add_axis").prop("checked", true)
-        Form.find("#metric_select").find("##{@options.moreYaxis}").attr('selected', true)
+        Form.find("#metric_select").find("##{@options.config.moreYaxis}").attr('selected', true)
 
-      if @options.xgrid == true then Form.find("#add_grid_x").prop("checked", true)
-      if @options.ygrid == true then Form.find("#add_grid_y").prop("checked", true)
-      if @options.rotateAxis == true then Form.find("#rotate_axis").prop("checked", true)
-      if @options.subchart == true then Form.find("#subchart").prop("checked", true)
+      if @options.config.xgrid == true then Form.find("#add_grid_x").prop("checked", true)
+      if @options.config.ygrid == true then Form.find("#add_grid_y").prop("checked", true)
+      if @options.config.rotateAxis == true then Form.find("#rotate_axis").prop("checked", true)
+      if @options.config.subchart == true then Form.find("#subchart").prop("checked", true)
 
-      Form.find("#max_x_labels").val(@options.max_x_labels)
+      Form.find("#max_x_labels").val(@options.config.max_x_labels)
 
       # allow user to enable additional Y axis
       Form.find("#add_axis").on "click", (e) =>
@@ -69,30 +70,30 @@ c3_chartify =
         Val = Form.find("#format_y_axis").children(":selected").attr("value")
         if Val == "custom"
           CustomFormat = Form.find("#custom_y_format").val()
-          @options.y_fromat = CustomFormat
+          @options.config.y_format = CustomFormat
         else
-          @options.y_format = Val
+          @options.config.y_format = Val
 
 
         Toolbar.find("[data-toggle=config-chart-popover]").popover('hide')
 
-        if Form.find("#add_grid_x").is(":checked") then @options.xgrid = true else @options.xgrid = false
-        if Form.find("#add_grid_y").is(":checked") then @options.ygrid = true else @options.ygrid = false
-        if Form.find("#rotate_axis").is(":checked") then @options.rotateAxis = true else @options.rotateAxis = false
-        if Form.find("#subchart").is(":checked") then @options.subchart = true else @options.subchart = false
+        if Form.find("#add_grid_x").is(":checked") then @options.config.xgrid = true else @options.config.xgrid = false
+        if Form.find("#add_grid_y").is(":checked") then @options.config.ygrid = true else @options.config.ygrid = false
+        if Form.find("#rotate_axis").is(":checked") then @options.config.rotateAxis = true else @options.config.rotateAxis = false
+        if Form.find("#subchart").is(":checked") then @options.config.subchart = true else @options.config.subchart = false
 
         Val = parseInt(Form.find("#max_x_labels").val())
-        if Number.isInteger(Val) == true then @options.max_x_labels = Val
+        if Number.isInteger(Val) == true then @options.config.max_x_labels = Val
 
         if Form.find("#add_axis").is(":checked")
           Id = Form.find("#metric_select").children(":selected").attr("id")
           if Id == undefined
-            @options.moreYaxis = false
+            @options.config.moreYaxis = false
           else
-            @options.moreYaxis = Id
+            @options.config.moreYaxis = Id
             @render_chart()
         else
-          @options.moreYaxis = false
+          @options.config.moreYaxis = false
           @render_chart()
 
 
@@ -118,15 +119,15 @@ c3_chartify =
       type: 'spline'
       axes: {}
 
-    if @options.moreYaxis != false then Options.axes[@options.moreYaxis] = 'y2'
+    if @options.config.moreYaxis != false then Options.axes[@options.config.moreYaxis] = 'y2'
     Id = @element.find(".chart").attr('id')
 
 
     YFormat =
-      if @options.y_format == "data_size"
+      if @options.config.y_format == "data_size"
         c3_utils.bytesToString
       else
-        d3.format(@options.y_format)
+        d3.format(@options.config.y_format)
       
 
     Args =
@@ -144,7 +145,7 @@ c3_chartify =
           tick:
             format: '%m-%d %H:%M:%S'
             culling:
-              max  : @options.max_x_labels
+              max  : @options.config.max_x_labels
 
         y:
           tick:
@@ -163,21 +164,17 @@ c3_chartify =
       subchart:
         show: false
 
-    if @options.moreYaxis != false then Args.axis['y2'] = {show: true}
+    if @options.config.moreYaxis != false then Args.axis['y2'] = {show: true}
 
-    if @options.xgrid == true then Args.grid.x.show = true
-    if @options.ygrid == true then Args.grid.y.show = true
-    if @options.rotateAxis == true then Args.axis.rotated = true
-    if @options.subchart == true then Args.subchart.show = true
+    if @options.config.xgrid == true then Args.grid.x.show = true
+    if @options.config.ygrid == true then Args.grid.y.show = true
+    if @options.config.rotateAxis == true then Args.axis.rotated = true
+    if @options.config.subchart == true then Args.subchart.show = true
 
     # console.log "generating chart", Args
     # display chart 
     chart         = c3.generate(Args)
     @_state.chart = chart
-    # if @options.moreYaxis != false
-    #   Dict = {}
-    #   Dict[@options.moreYaxis] = 'y2'
-    #   @_state.chart.data.axes(Dict)
 
     return false
 
@@ -295,7 +292,7 @@ c3_utils =
       "Float"     : ".3g"
 
     for Key, Val of FormatStyles 
-      if Opts.y_format == Val
+      if Opts.config.y_format == Val
         FS = FS.concat(""" <option value="#{Val}" selected> #{Key} </option> """)
       else
         FS = FS.concat(""" <option value="#{Val}"> #{Key}</option> """)
