@@ -6,11 +6,14 @@ dashboard =
     @_init_ui()
     @_init_toolbar()
     @_toolbar_events()
+
     if !@options.live?        then @options.live = false
     if !@options.granularity? then @options.granularity = graph_utils.granularity.min
     if !@options.interval     then @options.interval = 60000
+    if @options.live == true  then @_go_live()
 
-    if @options.live == true then @_go_live()
+    @options.toolbar.trigger("update_info_time")
+    @options.toolbar.trigger("update_info_granularity")
 
     #console.log "inside _init dashboard", @options.data
     if @options.data?
@@ -26,6 +29,13 @@ dashboard =
   _init_ui: ->
     Display = UI.graphDisplayC3("c3_display1", "chart")
     @element.append(Display)
+    @element.append(""" <div id="disp_info"
+    style="margin-bottom: 30px; padding-left: 5px; padding-top: 10px;">
+        <i class="fa fa-clock-o" ></i>
+        <span id="selected-time-interval" style="margin-right: 20px;"> time </span>
+        <i class="fa fa-sitemap" ></i>
+        <span id="selected-granularity"> sec </span>
+      </div>""")
 
 
   _init_toolbar : ->
@@ -83,11 +93,23 @@ dashboard =
     RangePicker = Toolbar.find("#range_picker")
     RangePicker.unbind("apply.daterangepicker")
     RangePicker.on "apply.daterangepicker", (e) =>
-      StartDate  = RangePicker.data('daterangepicker').startDate.unix()
-      EndDate    = RangePicker.data('daterangepicker').endDate.unix()
-      console.log StartDate, EndDate
+      StartDate  = RangePicker.data('daterangepicker').startDate
+      EndDate    = RangePicker.data('daterangepicker').endDate
+      console.log StartDate.unix(), EndDate.unix()
+      Toolbar.trigger("udpate_info_time")
       @update_all_metrics()
 
+    # update time range info div
+    Toolbar.on "update_info_time", =>
+      StartDate  = RangePicker.data('daterangepicker').startDate
+      EndDate    = RangePicker.data('daterangepicker').endDate      
+      Sd = StartDate.format("MMM D YYYY, h:mm:ss a")
+      Ed = EndDate.format("MMM D YYYY, h:mm:ss a")
+      @element.find("#selected-time-interval").html(Sd + " - " + Ed)
+
+    # update granularity info div
+    Toolbar.on "update_info_granularity", =>
+      @element.find("#selected-granularity").html(@options.granularity)
 
 
     Toolbar.find("#addMetric").on "click", =>
@@ -146,6 +168,7 @@ dashboard =
     Toolbar.find("#granularity").find('li').on "click", (e) =>
       Id = e.currentTarget.id
       @options.granularity = Id
+      @options.toolbar.trigger("update_info_granularity")
       console.log @options.granularity
       #TODO trigger event to change chart acc to granularity
 

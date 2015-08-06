@@ -109,7 +109,6 @@ UI =
     return """
       <div class="row">
         <div class="col-md-12 chartified" data-chart-name="#{Id}" id="display" >
-
         </div>
       </div> """
           # <div id="display" ></div>
@@ -141,7 +140,8 @@ UI =
 
     
   graphFrame: (Id="display1") ->
-    return """<div class="well graphDisplay" id="#{Id}"></div> """
+    return """
+      <div class="well graphDisplay" id="#{Id}" style="margin-bottom: 0px;"> </div>"""
 
 
   graphCanvas: (Id="chart") ->

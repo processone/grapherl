@@ -365,6 +365,8 @@
       if (this.options.live === true) {
         this._go_live();
       }
+      this.options.toolbar.trigger("update_info_time");
+      this.options.toolbar.trigger("update_info_granularity");
       if (this.options.data != null) {
         return $.each(this.options.data, (function(_this) {
           return function(Metric, Clients) {
@@ -381,7 +383,8 @@
     _init_ui: function() {
       var Display;
       Display = UI.graphDisplayC3("c3_display1", "chart");
-      return this.element.append(Display);
+      this.element.append(Display);
+      return this.element.append(" <div id=\"disp_info\"\nstyle=\"margin-bottom: 30px; padding-left: 5px; padding-top: 10px;\">\n    <i class=\"fa fa-clock-o\" ></i>\n    <span id=\"selected-time-interval\" style=\"margin-right: 20px;\"> time </span>\n    <i class=\"fa fa-sitemap\" ></i>\n    <span id=\"selected-granularity\"> sec </span>\n  </div>");
     },
     _init_toolbar: function() {
       var CurrDispMetric, RangePicker, Toolbar;
@@ -431,10 +434,26 @@
       RangePicker.on("apply.daterangepicker", (function(_this) {
         return function(e) {
           var EndDate, StartDate;
-          StartDate = RangePicker.data('daterangepicker').startDate.unix();
-          EndDate = RangePicker.data('daterangepicker').endDate.unix();
-          console.log(StartDate, EndDate);
+          StartDate = RangePicker.data('daterangepicker').startDate;
+          EndDate = RangePicker.data('daterangepicker').endDate;
+          console.log(StartDate.unix(), EndDate.unix());
+          Toolbar.trigger("udpate_info_time");
           return _this.update_all_metrics();
+        };
+      })(this));
+      Toolbar.on("update_info_time", (function(_this) {
+        return function() {
+          var Ed, EndDate, Sd, StartDate;
+          StartDate = RangePicker.data('daterangepicker').startDate;
+          EndDate = RangePicker.data('daterangepicker').endDate;
+          Sd = StartDate.format("MMM D YYYY, h:mm:ss a");
+          Ed = EndDate.format("MMM D YYYY, h:mm:ss a");
+          return _this.element.find("#selected-time-interval").html(Sd + " - " + Ed);
+        };
+      })(this));
+      Toolbar.on("update_info_granularity", (function(_this) {
+        return function() {
+          return _this.element.find("#selected-granularity").html(_this.options.granularity);
         };
       })(this));
       Toolbar.find("#addMetric").on("click", (function(_this) {
@@ -486,6 +505,7 @@
           var Id;
           Id = e.currentTarget.id;
           _this.options.granularity = Id;
+          _this.options.toolbar.trigger("update_info_granularity");
           return console.log(_this.options.granularity);
         };
       })(this));
@@ -1146,7 +1166,7 @@
     graphNew: function() {
       var Id;
       Id = graph_utils.generate_id();
-      return "<div class=\"row\">\n  <div class=\"col-md-12 chartified\" data-chart-name=\"" + Id + "\" id=\"display\" >\n\n  </div>\n</div> ";
+      return "<div class=\"row\">\n  <div class=\"col-md-12 chartified\" data-chart-name=\"" + Id + "\" id=\"display\" >\n  </div>\n</div> ";
     },
     graphNewSplit: function() {
       var Id1, Id2;
@@ -1173,7 +1193,7 @@
       if (Id == null) {
         Id = "display1";
       }
-      return "<div class=\"well graphDisplay\" id=\"" + Id + "\"></div> ";
+      return "<div class=\"well graphDisplay\" id=\"" + Id + "\" style=\"margin-bottom: 0px;\"> </div>";
     },
     graphCanvas: function(Id) {
       if (Id == null) {

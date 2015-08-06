@@ -316,9 +316,9 @@ process_data(Data, Granularity, Type) ->
                   end,
                           
     if
-        erlang:length(Data0) > 500 ->
+        erlang:length(Data0) > 1000 ->
             {ok, NewG}  = db_utils:lower_query_granularity(Granularity),
-            {ok, Data1} = recompress_data(Data0, NewG, Type, 500),
+            {ok, Data1} = recompress_data(Data0, NewG, Type, 1000),
             {ok, lists:ukeysort(1, Data1)};
         true ->
             {ok, lists:ukeysort(1, Data0)}
