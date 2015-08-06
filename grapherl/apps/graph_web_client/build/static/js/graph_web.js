@@ -7,10 +7,18 @@
     },
     _init: function() {
       this._super();
-      this.options.config = {};
-      this.options.config.moreYaxis = false;
-      this.options.config.max_x_labels = this.options.split === true ? 5 : 10;
-      this.options.config.y_format = "";
+      if (this.options.config == null) {
+        this.options.config = {};
+      }
+      if (this.options.config.moreYaxis == null) {
+        this.options.config.moreYaxis = false;
+      }
+      if (this.options.config.y_format == null) {
+        this.options.config.y_format = "";
+      }
+      if (this.options.config.max_x_labels == null) {
+        this.options.config.max_x_labels = this.options.split === true ? 5 : 10;
+      }
       return this.append_configrations();
     },
     append_configrations: function() {
@@ -140,7 +148,7 @@
       Options = {
         xs: Xs,
         columns: Columns,
-        type: 'spline',
+        type: 'line',
         axes: {}
       };
       if (this.options.config.moreYaxis !== false) {

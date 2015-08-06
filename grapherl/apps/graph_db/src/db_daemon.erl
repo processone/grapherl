@@ -195,7 +195,7 @@ aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, MetricData}, {DbFd, CurrType}) ->
         {false, stop} ->
             ok;
         {Purge, {Type, Step}} ->
-            MergeFun  = get_merge_fun(Mt), % {graph_utils, mean},
+            MergeFun  = db_utils:get_merge_fun(Mt), % {graph_utils, mean},
             NextType  = db_utils:get_next_type(Type),
             io:format("[+] compressing ~p to ~p.", [Type, NextType]),
             DbFdNext  = get_next_db_fd({Mn, Cn, Mt}, NextType, MetricData),
@@ -212,12 +212,12 @@ aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, MetricData}, {DbFd, CurrType}) ->
                            {DbFdNext, NextType})
     end.
 
-get_merge_fun(<<"g">>) ->
-    {graph_utils, gauge};
-get_merge_fun(<<"c">>) ->
-    {graph_utils, counter};
-get_merge_fun(_) ->
-    {graph_utils, mean}.
+%% get_merge_fun(<<"g">>) ->
+%%     {graph_utils, gauge};
+%% get_merge_fun(<<"c">>) ->
+%%     {graph_utils, counter};
+%% get_merge_fun(_) ->
+%%     {graph_utils, mean}.
 
 %% get the next db object based on granularity
 get_next_db_fd({Mid, Cn, Mt}, NextType, MetricData) ->

@@ -43,8 +43,12 @@ get_metric_list() ->
 %% retrieve metric data
 get_metric_data(Metric, Client, {Start, End}, Granularity) ->
     {ok, Granularity0} = db_utils:process_granularity(Granularity),
-    gen_server:call(?MODULE, {get_data, {Metric, Client, Start, End, 
-                              Granularity0}}).
+    {ok, Data0} = gen_server:call(?MODULE, {get_data, {Metric, Client, Start, End, 
+                                                      Granularity0}}),
+    {ok, Type}  = db_manager:get_metric_type(Metric),
+    {ok, Data}  = process_data(lists:keysort(1, Data0), Granularity, Type),
+    %% io:format("~n~n sending replay ~n~p~n", [lists:keysort(1, Data)]),
+    {ok, lists:keysort(1, Data)}.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -95,6 +99,7 @@ handle_call({get_data, Query}, _From, State) ->
     %% for optimization we can cache query.
     io:format("getting data ~p~n", [Query]),
     {ok, Data} = load_data(Query),
+
     {reply, {ok, Data}, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -110,6 +115,7 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+%% not used
 handle_cast({get_data, From, Query}, State) ->
     {ok, Data} = load_data(Query),
     From ! {ok, Data},
@@ -234,7 +240,7 @@ process_range({Mn, Cn, Granularity}, {_StartR, _} = Range) ->
 %% get data for specified range started from a given Granularity and keep moving
 %% to lower ganularity
 load_data(_, {_Mn, _Cn, _StartR, _EndR, stop}, Acc) ->
-    {ok, lists:keysort(1, Acc)};
+    {ok, Acc};
 
 load_data(MetricMap, {Mn, Cn, StartR, EndR, ?SEC}, Acc) ->
     {cache_fd, CacheFd} = lists:keyfind(cache_fd, 1, MetricMap),
@@ -296,3 +302,87 @@ reamining_range(Data, {_StartR, EndR}) ->
             {ok, {End, EndR}};
         true -> {ok, none}
     end.
+
+
+
+
+%% ============================================================================
+%% compress data to match it to queried granularity
+%% ============================================================================
+process_data(Data, Granularity, Type) ->
+    {ok, Data0} = case Type of
+                      <<"sec">> -> {ok, Data};
+                      _ -> compress_data(Data, Granularity, Type)
+                  end,
+                          
+    if
+        erlang:length(Data0) > 500 ->
+            {ok, NewG}  = db_utils:lower_query_granularity(Granularity),
+            {ok, Data1} = recompress_data(Data0, NewG, Type, 500),
+            {ok, lists:ukeysort(1, Data1)};
+        true ->
+            {ok, lists:ukeysort(1, Data0)}
+    end.
+        
+
+%% recompress data to bring the data size below the threshold
+recompress_data(Data, _G, _T, Limit) when erlang:length(Data) =< Limit ->
+    {ok, Data};
+recompress_data(Data, Granularity, Type, Limit) ->
+    {ok, DataC} = compress_data(Data, Granularity, Type),
+    {ok, NewG} = db_utils:lower_query_granularity(Granularity),
+    recompress_data(DataC, NewG, Type, Limit).
+
+
+%% compress data at given granularity
+compress_data([], _Granularity, _Type) ->
+    {ok, []};
+compress_data([{Key, Val} | Rest] = _Data, Granularity, Type) ->
+    {ok, Interval} = db_utils:query_granularity_to_interval(Granularity),
+    IntK           = erlang:binary_to_integer(Key),
+    compress_data0(Rest, Granularity, Type, Interval, [{IntK, Val}], []).
+
+
+compress_data0([], _, _, Interval, TAcc, Acc) when Interval > 0 ->
+    TAcc0 = lists:map(fun({Key, Val}) ->
+                              case erlang:is_integer(Key) of
+                                  true -> {erlang:integer_to_binary(Key), Val};
+                                  false -> {Key,Val}
+                              end
+                      end, TAcc),
+    {ok, lists:ukeysort(1, lists:flatten([Acc, TAcc0]))};
+
+compress_data0(Rest, Granularity, Type, Interval, TAcc, Acc) when Interval =< 0 ->
+    {ok, NewKey, NewVal} = compress_acc(TAcc, Type),
+    {ok, IntervalNew}    = db_utils:query_granularity_to_interval(Granularity),
+    case Rest of
+        [] ->
+            compress_data0(Rest, Granularity, Type, IntervalNew, [],
+                           [{NewKey, NewVal} | Acc]);
+        [{Key, Val} | Rest0] ->
+            IntK = erlang:binary_to_integer(Key),
+            compress_data0(Rest0, Granularity, Type, IntervalNew,
+                           [{IntK, Val}], [{NewKey, NewVal} | Acc])
+    end;
+compress_data0([{Key, Val} | Rest], Granularity, Type, Interval,
+               [{PrevK, _} | _AccR] = TAcc, Acc) when Interval > 0 ->
+    %% subtract interval
+    IntK       = erlang:binary_to_integer(Key),
+    Interval0  = IntK - PrevK,
+    Diff       = erlang:abs(Interval - Interval0),
+    compress_data0(Rest, Granularity, Type, Diff,
+                   [ {IntK, Val} | TAcc ], Acc).
+
+
+
+compress_acc(Acc, Type) ->
+    Values     = [Val || {_Key, Val} <- Acc],
+    Keys       = [Key || {Key, _Val} <- Acc],
+    {Mod, Fun} = db_utils:get_merge_fun(Type),
+    %% taken from db_daemon
+    NewVal     = erlang:apply(Mod, Fun, [Values]),
+    AvgKey     = erlang:integer_to_binary(
+                   erlang:round(
+                     graph_utils:binary_to_realNumber(
+                       graph_utils:mean(Keys)))),
+    {ok, AvgKey, NewVal}.

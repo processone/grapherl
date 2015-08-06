@@ -4,6 +4,7 @@
 
 %% API functions
 -export([start_link/1
+        ,get_metric_type/1
         ,get_metric_fd/1
         ,get_metric_fd/2
         ,get_metric_maps/0
@@ -24,6 +25,11 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+get_metric_type(Mn) ->
+    [{_, Val}] = fetch_fd({Mn, any}),
+    {metric_type, Mt}     = lists:keyfind(metric_type, 1, Val),
+    {ok, Mt}.
+
 %%get_metric_fd({Mn, Cn, Mt}) -> {ok, CacheFd, LiveMetricFd}.
 get_metric_fd(Mid) ->
     get_metric_fd(Mid, live).

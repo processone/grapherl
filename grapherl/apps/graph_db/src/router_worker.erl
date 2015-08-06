@@ -111,7 +111,7 @@ handle_info(timeout, #{socket := Socket} = State) ->
 
         %% store received data points into message queue
         {ok, Packet} ->
-            %%?INFO("Metric Data ~p: ~p~n", [self(), Ctr]),
+            % ?INFO("Metric Data ~p: ~p~n", [self(), Packet]),
             db_worker:direct_store(Packet),
             {noreply, State, 0};
 

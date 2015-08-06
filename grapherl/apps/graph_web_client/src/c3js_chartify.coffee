@@ -9,10 +9,12 @@ c3_chartify =
 
   _init: ->
     @_super()
-    @options.config = {}
-    @options.config.moreYaxis = false
-    @options.config.max_x_labels = if @options.split == true then 5 else 10
-    @options.config.y_format = ""
+    if !@options.config?           then @options.config = {}
+    if !@options.config.moreYaxis? then @options.config.moreYaxis = false
+    if !@options.config.y_format?  then @options.config.y_format = ""
+    if !@options.config.max_x_labels?
+      @options.config.max_x_labels = if @options.split == true then 5 else 10
+
     @append_configrations()
 
   append_configrations: ->
@@ -116,7 +118,7 @@ c3_chartify =
     Options =
       xs: Xs,
       columns: Columns,
-      type: 'spline'
+      type: 'line'
       axes: {}
 
     if @options.config.moreYaxis != false then Options.axes[@options.config.moreYaxis] = 'y2'

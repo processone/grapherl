@@ -1,6 +1,7 @@
 -module(db_utils).
 
 -export([gc/0
+        ,get_merge_fun/1
         ,unix_time/0
         ,get_msg_queue_name/1
         ,db_live/1
@@ -11,6 +12,8 @@
         ,to_metric_name/1
         ,get_metric_name/2
         ,process_granularity/1
+        ,lower_query_granularity/1
+        ,query_granularity_to_interval/1
         ,get_prev_type/1
         ,get_next_type/1
         ,get_interval/1
@@ -36,6 +39,15 @@ gc() ->
             ok
     end.
     
+
+get_merge_fun(<<"g">>) ->
+    {graph_utils, gauge};
+get_merge_fun(<<"c">>) ->
+    {graph_utils, counter};
+get_merge_fun(_) ->
+    {graph_utils, mean}.
+
+
 
 unix_time() ->
     datetime_to_unix_time(erlang:universaltime()).
@@ -115,6 +127,42 @@ process_granularity(<<"day">>) ->
     {ok, ?DAY};
 process_granularity(_) ->
     {ok, ?DAY}.
+
+
+lower_query_granularity(<<"sec">>) ->
+    {ok, <<"min">>};
+lower_query_granularity(<<"min">>) ->
+    {ok, <<"hour">>};
+lower_query_granularity(<<"hour">>) ->
+    {ok, <<"day">>};
+lower_query_granularity(<<"day">>) ->
+    {ok, <<"week">>};
+lower_query_granularity(<<"week">>) ->
+    {ok, <<"month">>};    
+lower_query_granularity(<<"year">>) ->
+    {ok, <<"year">>};
+lower_query_granularity(_) ->
+    {ok, <<"year">>}.
+
+
+
+query_granularity_to_interval(<<"sec">>) ->
+    {ok, 1};
+query_granularity_to_interval(<<"min">>) ->
+    {ok, get_interval(?SEC)};
+query_granularity_to_interval(<<"hour">>) ->
+    {ok, get_interval(?MIN)};
+query_granularity_to_interval(<<"day">>) ->
+    {ok, get_interval(?HOUR)};
+query_granularity_to_interval(<<"week">>) ->
+    {ok, get_interval(?DAY) * 7};
+query_granularity_to_interval(<<"month">>) ->
+    {ok, get_interval(?DAY) * 30};
+query_granularity_to_interval(<<"year">>) ->
+    {ok, get_interval(?DAY) * 365};
+query_granularity_to_interval(_) ->
+    {ok, get_interval(?DAY) * 365}.
+    %{ok, ?DAY}.
 
 
 get_prev_type(?SEC)  -> stop;
