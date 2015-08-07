@@ -147,7 +147,7 @@ lower_query_granularity(_) ->
 
 
 query_granularity_to_interval(<<"sec">>) ->
-    {ok, 1};
+    {ok, 30};
 query_granularity_to_interval(<<"min">>) ->
     {ok, get_interval(?SEC)};
 query_granularity_to_interval(<<"hour">>) ->

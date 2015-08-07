@@ -310,11 +310,10 @@ reamining_range(Data, {_StartR, EndR}) ->
 %% compress data to match it to queried granularity
 %% ============================================================================
 process_data(Data, Granularity, Type) ->
-    {ok, Data0} = case Type of
+    {ok, Data0} = case Granularity of
                       <<"sec">> -> {ok, Data};
                       _ -> compress_data(Data, Granularity, Type)
                   end,
-                          
     if
         erlang:length(Data0) > 1000 ->
             {ok, NewG}  = db_utils:lower_query_granularity(Granularity),

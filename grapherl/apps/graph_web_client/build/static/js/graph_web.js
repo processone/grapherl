@@ -19,6 +19,9 @@
       if (this.options.config.max_x_labels == null) {
         this.options.config.max_x_labels = this.options.split === true ? 5 : 10;
       }
+      if (this.options.config.disp_points == null) {
+        this.options.config.disp_points = false;
+      }
       return this.append_configrations();
     },
     append_configrations: function() {
@@ -57,6 +60,12 @@
           }
           if (_this.options.config.subchart === true) {
             Form.find("#subchart").prop("checked", true);
+          }
+          if (_this.options.config.subchart === true) {
+            Form.find("#subchart").prop("checked", true);
+          }
+          if (_this.options.config.disp_points === true) {
+            Form.find("#disp_points").prop("checked", true);
           }
           Form.find("#max_x_labels").val(_this.options.config.max_x_labels);
           Form.find("#add_axis").on("click", function(e) {
@@ -103,6 +112,11 @@
               _this.options.config.subchart = true;
             } else {
               _this.options.config.subchart = false;
+            }
+            if (Form.find("#disp_points").is(":checked")) {
+              _this.options.config.disp_points = true;
+            } else {
+              _this.options.config.disp_points = false;
             }
             Val = parseInt(Form.find("#max_x_labels").val());
             if (Number.isInteger(Val) === true) {
@@ -159,6 +173,9 @@
       Args = {
         bindto: "#" + Id,
         data: Options,
+        point: {
+          show: this.options.config.disp_points
+        },
         padding: {
           right: 50
         },
@@ -341,7 +358,7 @@
         }
       }
       FS = FS.concat(" <option value=\"custom\"> Custom </option> ");
-      return "<div class=\"hide\">\n  <form class=\"form\" role=\"form\" id=\"chart-config\">\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"add_axis\" type=\"checkbox\" value=\"\">\n          Additional Y axis for\n        </label>\n      </div>\n      <select class=\"form-control\" id=\"metric_select\" style=\"width: 90%; margin-left: 20px;\">\n        " + List + "\n      </select>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\"> <label> Grids :</label>\n        <span> X grid: </span>\n        <span> <input id=\"add_grid_x\" type=\"checkbox\" value=\"\"\n         style=\"margin-left: 0px;\"> </span>\n\n        <span style=\"margin-left: 20px;\"> Y grid: </span>\n        <span> <input id=\"add_grid_y\" type=\"checkbox\" value=\"\"\n         style=\"margin-left: 5px;\"> </span>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label>\n          <input id=\"rotate_axis\" type=\"checkbox\" value=\"\">\n          Rotate axis\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"subchart\" type=\"checkbox\" value=\"\">\n          Subchart display\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label> Max X axis labels </label>\n          <input id=\"max_x_labels\" class=\"form-control\" type=\"number\" min=1\n          style=\"display: inline; margin-left: 10px; width: 30%;\">\n\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label> Y axis label format </label>\n      </div>\n      <div class=\"checkbox\" style=\"padding-left: 20px;\">\n        <select class=\"form-control\" id=\"format_y_axis\"\n        style=\"display: inline; width: 40%;\">\n          " + FS + "\n        </select>\n        <input id=\"custom_y_format\" class=\"form-control\" placeholder=\"Format\"\n        style=\"display: none; max-width: 40%;\">\n        <a onclick=\"window.open('http://koaning.s3-website-us-west-2.amazonaws.com/html/d3format.html', '_blank').focus()\"\n         style=\"font-size: small; cursor: pointer;\"> Help </a>\n      </div>\n\n\n    </div>\n\n    <div class=\"form-group\" style=\"padding-left: 20px;\">\n      <button type=\"submit\" class=\"btn btn-primary\">Submit »</button>\n    </div>\n  </form>\n</div> ";
+      return "<div class=\"hide\">\n  <form class=\"form\" role=\"form\" id=\"chart-config\">\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"add_axis\" type=\"checkbox\" value=\"\">\n          Additional Y axis for\n        </label>\n      </div>\n      <select class=\"form-control\" id=\"metric_select\" style=\"width: 90%; margin-left: 20px;\">\n        " + List + "\n      </select>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\"> <label> Grids :</label>\n        <span> X grid: </span>\n        <span> <input id=\"add_grid_x\" type=\"checkbox\" value=\"\"\n         style=\"margin-left: 0px;\"> </span>\n\n        <span style=\"margin-left: 20px;\"> Y grid: </span>\n        <span> <input id=\"add_grid_y\" type=\"checkbox\" value=\"\"\n         style=\"margin-left: 5px;\"> </span>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label>\n          <input id=\"rotate_axis\" type=\"checkbox\" value=\"\">\n          Rotate axis\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"subchart\" type=\"checkbox\" value=\"\">\n          Subchart display\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label><input id=\"disp_points\" type=\"checkbox\" value=\"\">\n          Circle points\n        </label>\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label> Max X axis labels </label>\n          <input id=\"max_x_labels\" class=\"form-control\" type=\"number\" min=1\n          style=\"display: inline; margin-left: 10px; width: 30%;\">\n\n      </div>\n    </div>\n\n    <div class=\"form-group\">\n      <div class=\"checkbox\">\n        <label> Y axis label format </label>\n      </div>\n      <div class=\"checkbox\" style=\"padding-left: 20px;\">\n        <select class=\"form-control\" id=\"format_y_axis\"\n        style=\"display: inline; width: 40%;\">\n          " + FS + "\n        </select>\n        <input id=\"custom_y_format\" class=\"form-control\" placeholder=\"Format\"\n        style=\"display: none; max-width: 40%;\">\n        <a onclick=\"window.open('http://koaning.s3-website-us-west-2.amazonaws.com/html/d3format.html', '_blank').focus()\"\n         style=\"font-size: small; cursor: pointer;\"> Help </a>\n      </div>\n\n\n    </div>\n\n    <div class=\"form-group\" style=\"padding-left: 20px;\">\n      <button type=\"submit\" class=\"btn btn-primary\">Submit »</button>\n    </div>\n  </form>\n</div> ";
     }
   };
 
@@ -1324,7 +1341,7 @@
       return this.element.find(".multi-selected").remove();
     },
     _add_sidebar_elements: function(Data) {
-      var Client, Clients, Data2, List, Metric, j, len;
+      var Client, Clients, Data2, List, Metric, Metrics, Value, j, k, l, len, len1, len2, results, results1;
       List = this.element.find("#active-metrics");
       Data2 = {};
       if (this.options.display === "client") {
@@ -1339,31 +1356,41 @@
             }
           }
         }
-        return $.each(Data2, (function(_this) {
-          return function(Client, Metrics) {
-            var k, len1, results;
-            List.append("<li title=\"" + Client + "\" class=\"metric disabled\">\n  <a href=\"#\" style=\"text-align: center;\">" + Client + "</a>\n</li> ");
-            results = [];
-            for (k = 0, len1 = Metrics.length; k < len1; k++) {
-              Metric = Metrics[k];
-              results.push(List.append(UI.sideBar_li(Metric, Client, Metric)));
+        Clients = Object.keys(Data2).sort();
+        results = [];
+        for (k = 0, len1 = Clients.length; k < len1; k++) {
+          Client = Clients[k];
+          List.append("<li title=\"" + Client + "\" class=\"metric disabled\">\n  <a href=\"#\" style=\"text-align: center;\">" + Client + "</a>\n</li> ");
+          Metrics = Data2[Client].sort();
+          results.push((function() {
+            var l, len2, results1;
+            results1 = [];
+            for (l = 0, len2 = Metrics.length; l < len2; l++) {
+              Metric = Metrics[l];
+              results1.push(List.append(UI.sideBar_li(Metric, Client, Metric)));
             }
-            return results;
-          };
-        })(this));
+            return results1;
+          })());
+        }
+        return results;
       } else {
-        return $.each(Data, (function(_this) {
-          return function(Metric, Value) {
-            var k, len1, results;
-            List.append("<li title=\"" + Metric + "\" class=\"metric disabled\">\n  <a href=\"#\" style=\"text-align: center;\">" + Metric + "</a>\n</li> ");
-            results = [];
-            for (k = 0, len1 = Value.length; k < len1; k++) {
-              Client = Value[k];
-              results.push(List.append(UI.sideBar_li(Metric, Client, Client)));
+        Metrics = Object.keys(Data).sort();
+        results1 = [];
+        for (l = 0, len2 = Metrics.length; l < len2; l++) {
+          Metric = Metrics[l];
+          List.append("<li title=\"" + Metric + "\" class=\"metric disabled\">\n  <a href=\"#\" style=\"text-align: center;\">" + Metric + "</a>\n</li> ");
+          Value = Data[Metric].sort();
+          results1.push((function() {
+            var len3, m, results2;
+            results2 = [];
+            for (m = 0, len3 = Value.length; m < len3; m++) {
+              Client = Value[m];
+              results2.push(List.append(UI.sideBar_li(Metric, Client, Client)));
             }
-            return results;
-          };
-        })(this));
+            return results2;
+          })());
+        }
+        return results1;
       }
     },
     _multi_selection: function() {

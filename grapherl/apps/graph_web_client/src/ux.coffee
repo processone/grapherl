@@ -105,20 +105,26 @@ sidebar =
         for Client in Clients
           if Data2[Client]? then Data2[Client].push(Metric) else Data2[Client] = [Metric]
 
-      $.each Data2, (Client, Metrics) =>
+      # $.each Data2, (Client, Metrics) =>
+      Clients = Object.keys(Data2).sort()
+      for Client in Clients
         List.append("""
           <li title="#{Client}" class="metric disabled">
             <a href="#" style="text-align: center;">#{Client}</a>
           </li> """)
+        Metrics = Data2[Client].sort()
         for Metric in Metrics
           List.append(UI.sideBar_li(Metric, Client, Metric))
 
     else
-      $.each Data, (Metric, Value) =>
+      #$.each Data, (Metric, Value) =>
+      Metrics = Object.keys(Data).sort()
+      for Metric in Metrics
         List.append("""
           <li title="#{Metric}" class="metric disabled">
             <a href="#" style="text-align: center;">#{Metric}</a>
           </li> """)
+        Value = Data[Metric].sort()
         for Client in Value
           List.append(UI.sideBar_li(Metric, Client, Client))
 

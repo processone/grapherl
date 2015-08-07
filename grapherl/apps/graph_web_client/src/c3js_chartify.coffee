@@ -14,6 +14,7 @@ c3_chartify =
     if !@options.config.y_format?  then @options.config.y_format = ""
     if !@options.config.max_x_labels?
       @options.config.max_x_labels = if @options.split == true then 5 else 10
+    if !@options.config.disp_points? then @options.config.disp_points = false
 
     @append_configrations()
 
@@ -48,6 +49,8 @@ c3_chartify =
       if @options.config.ygrid == true then Form.find("#add_grid_y").prop("checked", true)
       if @options.config.rotateAxis == true then Form.find("#rotate_axis").prop("checked", true)
       if @options.config.subchart == true then Form.find("#subchart").prop("checked", true)
+      if @options.config.subchart == true then Form.find("#subchart").prop("checked", true)
+      if @options.config.disp_points == true  then Form.find("#disp_points").prop("checked", true)
 
       Form.find("#max_x_labels").val(@options.config.max_x_labels)
 
@@ -83,6 +86,7 @@ c3_chartify =
         if Form.find("#add_grid_y").is(":checked") then @options.config.ygrid = true else @options.config.ygrid = false
         if Form.find("#rotate_axis").is(":checked") then @options.config.rotateAxis = true else @options.config.rotateAxis = false
         if Form.find("#subchart").is(":checked") then @options.config.subchart = true else @options.config.subchart = false
+        if Form.find("#disp_points").is(":checked") then @options.config.disp_points = true else @options.config.disp_points = false
 
         Val = parseInt(Form.find("#max_x_labels").val())
         if Number.isInteger(Val) == true then @options.config.max_x_labels = Val
@@ -135,6 +139,8 @@ c3_chartify =
     Args =
       bindto: "##{Id}"
       data  : Options 
+      point :
+        show: @options.config.disp_points
       # transition:
       #   duration: 0
       padding:
@@ -148,7 +154,6 @@ c3_chartify =
             format: '%m-%d %H:%M:%S'
             culling:
               max  : @options.config.max_x_labels
-
 
         y:
           tick:
@@ -341,6 +346,14 @@ c3_utils =
             <div class="checkbox">
               <label><input id="subchart" type="checkbox" value="">
                 Subchart display
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="checkbox">
+              <label><input id="disp_points" type="checkbox" value="">
+                Circle points
               </label>
             </div>
           </div>
