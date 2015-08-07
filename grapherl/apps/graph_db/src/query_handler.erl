@@ -343,14 +343,10 @@ compress_data([{Key, Val} | Rest] = _Data, Granularity, Type) ->
     compress_data0(Rest, Granularity, Type, Interval, [{IntK, Val}], []).
 
 
-compress_data0([], _, _, Interval, TAcc, Acc) when Interval > 0 ->
-    TAcc0 = lists:map(fun({Key, Val}) ->
-                              case erlang:is_integer(Key) of
-                                  true -> {erlang:integer_to_binary(Key), Val};
-                                  false -> {Key,Val}
-                              end
-                      end, TAcc),
-    {ok, lists:ukeysort(1, lists:flatten([Acc, TAcc0]))};
+compress_data0([], _, Type, Interval, TAcc, Acc) when Interval > 0 ->
+    %% compress the remaining points anyway
+    {ok, NewKey, NewVal} = compress_acc(TAcc, Type),
+    {ok, lists:ukeysort(1, [{NewKey, NewVal} | Acc])};
 
 compress_data0(Rest, Granularity, Type, Interval, TAcc, Acc) when Interval =< 0 ->
     {ok, NewKey, NewVal} = compress_acc(TAcc, Type),

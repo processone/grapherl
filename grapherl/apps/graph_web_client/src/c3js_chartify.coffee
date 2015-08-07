@@ -149,6 +149,7 @@ c3_chartify =
             culling:
               max  : @options.config.max_x_labels
 
+
         y:
           tick:
             format: (d) =>
