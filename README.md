@@ -1,15 +1,25 @@
 # Grapherl
-ejabberd monitoring server
+realtime scalable monitoring server
+
 
 # Quick start
 Clone this repo to your system:
 
       $ git clone https://github.com/processone/grapherl.git
 
+
+**Prerequisites**:  Before executing `make` please make sure you have Erlang/OTP 17.x installed
+
+
 Compile and run
 
       $ cd grapherl
       $ make && make console
+
+
+**NOTE**: `make` may fail the first time you try to execute it ! In that case just execute `make` again. If
+it fails repeatedly then mail the error at `kansi13 at gmail dot com` with the subject `grapherl compile error`,
+you will get a reply in couple of minutes.
 
 
 # Images
@@ -148,15 +158,31 @@ remember to start Grapherl with necessary permissions (eg. sudo in case port < 1
 
 Now we discuss various features offered on the client side. 
 
-  - The client side has a side-bar which shows active metrics. This side-bar is auto-refreshed every 10 minutes but the user can manually refresh by clicking on the refresh button located in the top right corner of the side-bar.
+  - The client side has a global side-bar which shows active metrics. This global side-bar is auto-refreshed every 10 minutes but the user can manually refresh by clicking on the refresh button located in the top right corner of the global side-bar.
   - Clicking on any of the metrics in side-bar will start a display which will show the data aggregated in the past 3 hours.
   - A display is a frame/panel which displays the graphs. It is composed of two parts: toolbar and chart display area. There are two kinds of displays that can be created:
     - Single displays: these span the width.
     - Split displays : two displays places side-by-side.
   - User can add these displays by clicking the pink buttons located in the top-right corner (of global toolbar).
-  - User can add/remove multiple metrics to these displays.
+  - User can add/remove multiple metrics to these displays. To add a metric click on "+" button in display toolbar, this will activate metric selection mode and "square button" will appear in place of the "+" button. Select all the metrics from the global side-bar which you want to add to the display. Once you selected the desired metrics click the "square button" to exit out of the metric selection mode. Once you are out of the metric selection mode all selected metric will be added to the display.
   - User can specify the range, granularity at which the graphs are to be displayed.
   - To display live data you can click the live button and also configure the interval after which new data will be requested from the server.
   - User can change the display type for any metric by clicking the gear button in display toolbar. Currently 3 types of graphs are supported (bar, line, spline)
   - If the data is not available at the current selected granularity then it will serverd at either higher or lower granularity (which ever is available).
   - User can also add x/y grids line, additional y axis (for different scales), subgraph view or rotate axis. All these can be configured by clicking on the stacked bars icon in display toolbar.
+
+
+
+
+**NOTE**:
+Though Grapherl allows users to specify granularity at which they want to see data, graph_web serves data based on its
+availability and not on queried granularity. What this means is that if user wants to retrieve data at a particular granularity,
+Grapherl will try it best to serve at queried granularity. If the data is not available at the queried granularity then Grapherl
+will serve data at higher or lower granularity depending on which ever is available. If data is higher granularity then it is
+compressed to the queried granularity.
+
+
+# Contributors
+- Vanshdeep Singh [@kansi](https://github.com/kansi): Architect and developer.
+- Mickaël Rémond [@mremond](https://github.com/mremond): active feedback and suggestions (mentor)
+- Christophe Romain [@cromain](https://github.com/cromain): active feedback and suggestions.

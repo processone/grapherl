@@ -16,7 +16,7 @@ spawn_clients(Num, Port, Packets) ->
       fun() ->
               {ok, Socket} = gen_udp:open(Port),
               %Name = "www.server" ++ erlang:integer_to_list(Port) ++ ".com",
-              Name = "cpu_usage_" ++ erlang:integer_to_list(Port),
+              Name = "metric_" ++ erlang:integer_to_list(Port),
               TS   = unix_time(),
               client(Name, Socket, Packets, TS)
       end),
@@ -27,20 +27,20 @@ client(_Name, Socket, 0, _Ts) ->
     gen_udp:close(Socket);
 client(Name, Socket, Num, Ts) ->
     Data = data(Name, Ts),
-    io:format("[+] Sending ~p~n", [Data]),
-    gen_udp:send(Socket, {127,0,0,1}, 11111, Data),
+
+    Ret = gen_udp:send(Socket, {127,0,0,1}, 11111, Data),
+    io:format("[+] Sending ~p ~p ~n", [Data, Ret]),
     %ets:insert(testrouter, [{k,v}]),
     timer:sleep(20),
-    client(Name, Socket, Num -1, Ts + 5).
+    client(Name, Socket, Num -1, Ts + 60).
 
 
 data(Name, Ts) ->
-    Val  = erlang:integer_to_list(crypto:rand_uniform(0, 100)),
+    Val  = erlang:integer_to_list(crypto:rand_uniform(1000000, 100000000)),
     % Val  = erlang:integer_to_list(random:uniform(100)),
     TsS  = erlang:integer_to_list(Ts),
     %Data = Client ++ "/cpu_usage:g/" ++ TsS ++ ":" ++ Val, 
-    Data = "www.server01.com/" ++ Name ++ ":c/" ++ TsS ++ ":" ++ Val, 
-    %Data = "{\"mid\": {\"cn\": \"" ++ Client ++ "\", \"mn\": \"cpu_usage\"}, \"mp\": {\"" ++ TsS ++ "\":" ++ Val ++ "}}",
+    Data = "www.site01.com/" ++ Name ++ ":g/" ++ TsS ++ ":" ++ Val, 
     Data.
 
 

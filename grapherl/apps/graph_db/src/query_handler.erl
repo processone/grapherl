@@ -339,13 +339,27 @@ compress_data([], _Granularity, _Type) ->
 compress_data([{Key, Val} | Rest] = _Data, Granularity, Type) ->
     {ok, Interval} = db_utils:query_granularity_to_interval(Granularity),
     IntK           = erlang:binary_to_integer(Key),
-    compress_data0(Rest, Granularity, Type, Interval, [{IntK, Val}], []).
+    TAcc           = [{IntK, Val}],
+    compress_data0(Rest, Granularity, Type, Interval, TAcc, []).
 
+
+
+compress_data0([], _, _Type, Interval, [], Acc) when Interval > 0 ->
+    {ok, lists:ukeysort(1, Acc)};
 
 compress_data0([], _, Type, Interval, TAcc, Acc) when Interval > 0 ->
     %% compress the remaining points anyway
     {ok, NewKey, NewVal} = compress_acc(TAcc, Type),
     {ok, lists:ukeysort(1, [{NewKey, NewVal} | Acc])};
+
+%% in case we have Data at the required granularity then Interval =< 0 for every next
+%% point. So in that case we directly add then to Acc
+%% compress_data0([{NKey, NVal} | Rest], Granularity, Type, Interval, [{Key,Val}], Acc)
+%%   when Interval =< 0 ->
+%%     TAcc             = [{binary_to_integer(NKey), NVal}],
+%%     {ok, IntervalN}  = db_utils:query_granularity_to_interval(Granularity),
+%%     compress_data0(Rest, Granularity, Type, IntervalN, TAcc,
+%%                    [{integer_to_binary(Key), Val} | Acc]);
 
 compress_data0(Rest, Granularity, Type, Interval, TAcc, Acc) when Interval =< 0 ->
     {ok, NewKey, NewVal} = compress_acc(TAcc, Type),

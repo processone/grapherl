@@ -5,27 +5,25 @@ import time
 import random
 
 
-
-
+# generate N clients
 def generate_clients(N):
     List = []
     for i in range(1, N+1):
-        List.append("www.server" + str(i) + ".com")
+        List.append("website" + str(i) + ".com")
     return List
 
 def main():
     N       = 2
     Clients = generate_clients(N)
+    sock    = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    ts      = calendar.timegm(time.gmtime())
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    ts = calendar.timegm(time.gmtime())
-
-    for i in range(1, 10000):
+    for i in range(1, 3):
         for j in range(0, N):
             val = random.random()
-            D = json.dumps({'mid': {'mn': "cpu_usage", 'cn': Clients[j]}, 'mp': {ts:val} })
-            print(D)
-            sock.sendto(str.encode(D), ('localhost', 11111))
+            DataPoint = Clients[j] + "/metric" + str(i) + ":g/" + str(ts) + ":" + str(val)
+            print(DataPoint)
+            sock.sendto(str.encode(DataPoint), ('localhost', 11111))
             time.sleep(0.002)
         ts += 5
 
