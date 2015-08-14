@@ -401,7 +401,7 @@
       var Display;
       Display = UI.graphDisplayC3("c3_display1", "chart");
       this.element.append(Display);
-      return this.element.append(" <div id=\"disp_info\"\nstyle=\"margin-bottom: 30px; padding-left: 5px; padding-top: 10px;\">\n    <i class=\"fa fa-clock-o\" ></i>\n    <span id=\"selected-time-interval\" style=\"margin-right: 20px;\"> time </span>\n    <i class=\"fa fa-sitemap\" ></i>\n    <span id=\"selected-granularity\"> sec </span>\n  </div>");
+      return this.element.append("<div id=\"disp_info\" style=\"margin-bottom: 30px; padding-left: 5px;\n  padding-top: 10px;\">\n    <i class=\"fa fa-clock-o\" ></i>\n    <span id=\"selected-time-interval\" style=\"margin-right: 20px;\"> time </span>\n    <i class=\"fa fa-sitemap\" ></i>\n    <span id=\"selected-granularity\"> sec </span>\n  </div>");
     },
     _init_toolbar: function() {
       var CurrDispMetric, RangePicker, Toolbar;
@@ -441,11 +441,6 @@
         };
       })(this));
       this.inti_daterangepicker();
-      this.element.find("#saveDisplay").on("click", (function(_this) {
-        return function() {
-          return _this.saveDisplay();
-        };
-      })(this));
       RangePicker = Toolbar.find("#range_picker");
       RangePicker.unbind("apply.daterangepicker");
       RangePicker.on("apply.daterangepicker", (function(_this) {

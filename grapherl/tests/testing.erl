@@ -5,6 +5,8 @@
 
 %% Num : specifies the number of differnt metrics to simulate
 %% Packets : specifies the number of data points to be sent for each metric
+%% usage: testing:spawn_clients(100, 1000) % 100 metrics, each metrics populated
+%% with 1000 data points.
 spawn_clients(Num, Packets) ->
     spawn_clients(Num, 12000, Packets).
 
@@ -27,17 +29,15 @@ client(_Name, Socket, 0, _Ts) ->
     gen_udp:close(Socket);
 client(Name, Socket, Num, Ts) ->
     Data = data(Name, Ts),
-
-    Ret = gen_udp:send(Socket, {127,0,0,1}, 11111, Data),
+    Ret  = gen_udp:send(Socket, {127,0,0,1}, 11111, Data),
     io:format("[+] Sending ~p ~p ~n", [Data, Ret]),
-    %ets:insert(testrouter, [{k,v}]),
     timer:sleep(20),
     client(Name, Socket, Num -1, Ts + 60).
 
 
+%% generate random data point
 data(Name, Ts) ->
     Val  = erlang:integer_to_list(crypto:rand_uniform(1000000, 100000000)),
-    % Val  = erlang:integer_to_list(random:uniform(100)),
     TsS  = erlang:integer_to_list(Ts),
     %Data = Client ++ "/cpu_usage:g/" ++ TsS ++ ":" ++ Val, 
     Data = "www.site01.com/" ++ Name ++ ":g/" ++ TsS ++ ":" ++ Val, 

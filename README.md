@@ -27,6 +27,22 @@ Single display in Grapherl
 ![Grapherl](https://github.com/processone/grapherl/blob/feat-graph-web/grapherl/images/grapherl.png)
 
 
+# Getting data into Grapherl
+Grapherl by default listens on port `11111`. Format for sending a metric point is as follows:
+
+         client_name/metric_name:metric_type/time_stamp:value
+
+- **metric_name**: Specify the metric name for eg. cpu_usage, online_users, memory etc.
+- **client_name**: metric_name along with client_name are used to uniquely identify a point. Client name can be anything for eg. `server01`,  `website01.com`,  `website_101`,   `1284398` etc. **NOTE** Grapherl considers client_name just as plane string meaning that there is **no** special interpretation for `website_101.com` as compared `website_101`, they are both just (different) strings for Grapherl.
+- **metric_type**: there are 2 types allowed `g` (gauge) and `c` (counter). Metric types are discussed [here](https://github.com/etsy/statsd/blob/master/docs/metric_types.md). By default for a gauge metric values are averaged over and interval and for counter metric values are added over an interval.
+- **time_stamp**: epoch time.
+- **value**: value for the given time_stamp.
+
+Sample python (`data_feed.py`) and erlang (`testing.erl`) modules which feed data into Grapherl located under the `grapherl/tests` directory.
+
+If you have any queries regarding feeding data into Grapherl mail them at `kansi13 at gmail dot com`.
+
+
 # Configrations
 Grapherl consists of 2 components **graph_db** which receives UDP data and stores it, **graph_web** which retrives this
 data and creates nice visualizations for the user.

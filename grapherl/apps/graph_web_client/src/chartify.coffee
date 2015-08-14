@@ -1,21 +1,28 @@
+#=============================================================================
+# init dashboard for the display
+#=============================================================================
 dashboard =
+
   _create : ->
     @_state = {}
+
 
   _init: ->
     @_init_ui()
     @_init_toolbar()
     @_toolbar_events()
 
+    # initialize options
     if !@options.live?        then @options.live = false
     if !@options.granularity? then @options.granularity = graph_utils.granularity.min
     if !@options.interval     then @options.interval = 60000
     if @options.live == true  then @_go_live()
 
+    # trigger udpates for info display
     @options.toolbar.trigger("update_info_time")
     @options.toolbar.trigger("update_info_granularity")
 
-    #console.log "inside _init dashboard", @options.data
+    # load data
     if @options.data?
       #for Metric, Clients in @options.data
       $.each @options.data, (Metric, Clients) =>
@@ -26,11 +33,13 @@ dashboard =
       @options.data = {}
 
 
+  # add charting areas and info displays
   _init_ui: ->
     Display = UI.graphDisplayC3("c3_display1", "chart")
     @element.append(Display)
-    @element.append(""" <div id="disp_info"
-    style="margin-bottom: 30px; padding-left: 5px; padding-top: 10px;">
+    @element.append("""
+    <div id="disp_info" style="margin-bottom: 30px; padding-left: 5px;
+      padding-top: 10px;">
         <i class="fa fa-clock-o" ></i>
         <span id="selected-time-interval" style="margin-right: 20px;"> time </span>
         <i class="fa fa-sitemap" ></i>
@@ -38,6 +47,7 @@ dashboard =
       </div>""")
 
 
+  # bind events to toolbar buttons
   _init_toolbar : ->
     Toolbar = @element.find('nav')
 
@@ -62,7 +72,8 @@ dashboard =
 
       @_toolbar_events()
 
-    # change chart type
+
+    # change chart display type (bar, line, spline)
     Toolbar.find("#chart_type li").on "click", (e) =>
       e.stopImmediatePropagation()
       
@@ -82,14 +93,13 @@ dashboard =
         Toolbar.find("#chart_type li##{e.currentTarget.id}").removeClass("active")
         @options.toolbar.find("#chart_type").find(".#{e.currentTarget.id}").remove()
 
+    # @element.find("#saveDisplay").on "click", =>
+    #   @saveDisplay()
 
     # add daterangepicker 
     @inti_daterangepicker()
 
-    @element.find("#saveDisplay").on "click", =>
-      @saveDisplay()
-
-
+    # update metric display when new time range is selected
     RangePicker = Toolbar.find("#range_picker")
     RangePicker.unbind("apply.daterangepicker")
     RangePicker.on "apply.daterangepicker", (e) =>
@@ -111,12 +121,11 @@ dashboard =
     Toolbar.on "update_info_granularity", =>
       @element.find("#selected-granularity").html(@options.granularity)
 
-
+    # start metric selection mode to add more metric to display
     Toolbar.find("#addMetric").on "click", =>
       $.event.trigger('selectionStart')
       @toggle_add_button(true)
       return false
-
 
     # once the selection is complete add the selected client to @options.data
     # and get the data from chart daemon
@@ -141,12 +150,11 @@ dashboard =
 
       @toggle_add_button(false)
 
-
     # toggle button if selcection is canceled
     $(document).on "selectionCancel", =>
       @toggle_add_button(false)
 
-
+    # start fetcing live data for all displayed metrics
     Toolbar.find("#update_metrics i.live").on "click.update", =>
       if @options.live == false
         @_go_live()
@@ -162,8 +170,6 @@ dashboard =
         @options.live = false
         Toolbar.find("#update_metrics").find("a i.live").css("color", "")
 
-
-
     # on change new data is fetched from server
     Toolbar.find("#granularity").find('li').on "click", (e) =>
       Id = e.currentTarget.id
@@ -172,8 +178,7 @@ dashboard =
       console.log @options.granularity
       #TODO trigger event to change chart acc to granularity
 
-
-
+    # display popover to change live update interval
     Toolbar.find("[data-toggle=update-interval-popover]").popover({
       html: true
       placement: 'right'
@@ -182,6 +187,7 @@ dashboard =
         return $(UI.graphToolbar_intervalFrom(@options.interval/1000)).html()
     })
 
+    # if update interval changes then reset setInterval()
     Toolbar.find("[data-toggle=update-interval-popover]").on "shown.bs.popover", =>
       Form = @element.find(".popover").find("#update-interval")
       Form.on "submit", (e) =>
@@ -198,6 +204,7 @@ dashboard =
     return @options.toolbar = Toolbar
 
 
+  # start fetching live data
   _go_live: ->
     Fun = =>
       @element.find("#range_picker").data('daterangepicker').setEndDate(moment())
@@ -209,7 +216,7 @@ dashboard =
     return false
 
 
-  # return data to be stored
+  # return data for bookmarking window
   bookmark: ->
     Data = {}
     for Metric, Clients of @options.data
@@ -237,6 +244,7 @@ dashboard =
       @options.toolbar.find("#selectionDone").show()
 
 
+  # bind toolbar events
   _toolbar_events: ->
     Toolbar = @element.find('nav')
 
@@ -280,6 +288,7 @@ dashboard =
     return false
 
 
+  # udpate all displayed metrics with new data.
   update_all_metrics: ->
     for Metric, Clients of @options.data
       for Client, Data of Clients
@@ -319,6 +328,7 @@ dashboard =
       @element, Metric, Client, [Start, End], @options.granularity)
 
 
+  # init datarangepicker
   inti_daterangepicker: ->
     # taken from daterangepicker.com
     RangePicker = @element.find("#range_picker")

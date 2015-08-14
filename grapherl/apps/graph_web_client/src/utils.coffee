@@ -1,13 +1,22 @@
+#=============================================================================
+# utility functions for display plugins
+#=============================================================================
 graph_utils =
+
+  # generate unique id's
   generate_id: ->
     $("<div></div>").uniqueId().attr('id')
 
+
+  # add single display
   add_display: (MetricData) ->
     GraphFrame   = $(UI.graphDiv())
     NewDisplay   = $(UI.graphNew())
     NewDisplay.find("#display").chartify(MetricData)
     GraphFrame.append(NewDisplay)
 
+
+  # add split display
   add_split_display: (Data = undefined) ->
     GraphFrame   = $(UI.graphDiv())
     NewDisplay   = $(UI.graphNewSplit())
@@ -23,6 +32,8 @@ graph_utils =
     GraphFrame.append(NewDisplay)
     return GraphFrame
 
+
+  # bookmark display to reload later
   save_display: ->
     Rows = $(UI.graphDiv()).find(".row")
     Layout = []
@@ -75,8 +86,11 @@ graph_utils =
     month: "month"
     
 
-## contains all functions that genereate UI elements
+#=============================================================================
+# functions that genereate UI elements
+#=============================================================================
 UI =
+
   # global button
   globalToolbar : ->
     return $("#global-nav")
@@ -100,10 +114,13 @@ UI =
         <a href="#" style="padding: 5px;">  #{Disp}</a>
       </li> """
 
+
+  # global div for appending new displays
   graphDiv : ->
     return $("#graphDiv")
 
 
+  # create new charting div
   graphNew : ->
     Id = graph_utils.generate_id()
     return """
@@ -114,6 +131,7 @@ UI =
           # <div id="display" ></div>
 
 
+  # create new split display
   graphNewSplit : ->
     Id1 = graph_utils.generate_id()
     Id2 = graph_utils.generate_id()
@@ -122,8 +140,9 @@ UI =
         <div class="col-md-6 chartified" data-chart-name="#{Id1}" id="display" > </div>
         <div class="col-md-6 chartified" data-chart-name="#{Id2}" id="display" > </div>
       </div> """
-  # <div class="col-md-6 chartified" > <div id="display"></div> </div>
 
+
+  # create charting area for c3 charts
   graphDisplayC3: (DispId, ChartId) ->
     Frame = $(UI.graphFrame(DispId))
     Id    = graph_utils.generate_id()
@@ -132,6 +151,7 @@ UI =
     return Frame
 
 
+  # not used
   graphDisplayCharjs: (DispId, ChartId) ->
     Frame = $(UI.graphFrame(DispId))
     Frame.append(UI.graphCanvas(ChartId))
@@ -139,15 +159,18 @@ UI =
     return Frame
 
     
+  # display frame
   graphFrame: (Id="display1") ->
     return """
       <div class="well graphDisplay" id="#{Id}" style="margin-bottom: 0px;"> </div>"""
 
 
+  # create charting area for chart.js
   graphCanvas: (Id="chart") ->
     return """<div> <canvas id="#{Id}"></canvas> </div> """
 
 
+  # popover form for live interval
   graphToolbar_intervalFrom: (Value) ->
     return """
       <div id="popover-content" class="hide">
@@ -162,6 +185,7 @@ UI =
       </div> """
 
 
+  # display toolbar
   graphToolbar: ->
     return """
       <hr style="border-color:rgba(179, 179, 179, 0.6); margin:0px;">

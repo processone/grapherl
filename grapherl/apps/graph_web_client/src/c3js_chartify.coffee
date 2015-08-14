@@ -1,7 +1,6 @@
 #=============================================================================
 # add graph using c3.js
 #=============================================================================
-
 c3_chartify =
   _create : ->
     @_state = {}
@@ -18,6 +17,8 @@ c3_chartify =
 
     @append_configrations()
 
+
+  # add configrations specific to c3.js to display toolbar
   append_configrations: ->
 
     Li_element = """
@@ -25,6 +26,7 @@ c3_chartify =
           data-container="body" type="button" data-html="true">
         <a href="#"> <i class="fa fa-bars"></i> </a></li> """
 
+    # create popover element to display configration form
     Toolbar = @options.toolbar
     Toolbar.find(".chartify_hook").replaceWith(Li_element)
     Toolbar.find("[data-toggle=config-chart-popover]").popover({
@@ -35,10 +37,12 @@ c3_chartify =
         return $(c3_utils.chart_config(@options)).html()
     })
 
+    # display popover
     Toolbar.find("[data-toggle=config-chart-popover]").on "shown.bs.popover", =>
       Form = @element.find(".popover").find("#chart-config")
 
-      # check if the additional Y axis was added or not
+      #
+      # load previous config when popover is displayed
       if @options.config.moreYaxis == false
         Form.find("#metric_select").prop('disabled', true)
       else
@@ -67,11 +71,10 @@ c3_chartify =
         else          
           Form.find("#custom_y_format").hide()
 
-
-
+      # set new config values on form submit
       Form.on "submit", (e) =>
         e.preventDefault()
-        # extract format
+        # extract format for y-axis
         Val = Form.find("#format_y_axis").children(":selected").attr("value")
         if Val == "custom"
           CustomFormat = Form.find("#custom_y_format").val()
@@ -103,8 +106,7 @@ c3_chartify =
           @render_chart()
 
 
-
-
+  # generate chart
   render_chart : (Type = "line") ->
     # clear canvas before rendering
     if @_state.chart? then @_state.chart.destroy()
@@ -210,6 +212,7 @@ c3_chartify =
     return false
 
 
+  # load new data for metrics
   update_metric_data: (Metric, Client, Data) ->
     Xs      = {}
     Columns = []
@@ -225,10 +228,12 @@ c3_chartify =
     return false
 
 
+  # delete metrics from display
   removeMetric: (Metric, Client) ->
     @_state.chart.unload({
       ids: [Client + "-" + Metric]
     })
+
 
   # change chart display method
   transform_chart:(Type = "spline", Client, Metric) ->
@@ -237,8 +242,10 @@ c3_chartify =
     else
       @_state.chart.transform(Type, c3_utils.to_data_label(Client, Metric));
 
+
   saveDisplay: ->
     return false
+
 
   udpateChart: ->
     return false
@@ -282,6 +289,8 @@ c3_utils =
 
     return [NewData, X, D]
 
+
+  # generate config form for chart
   chart_config: (Opts) ->
     Data = Opts.data
     List = ""

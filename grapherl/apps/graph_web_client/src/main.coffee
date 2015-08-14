@@ -1,13 +1,13 @@
+#=============================================================================
+# load Grapherl client
+#=============================================================================
 $(document).ready ->
 
   # init plugins
-  # $.widget "grapherl.chartify", chartify
   $.widget "grapherl.dashboard", dashboard
   #$.widget "grapherl.chartjs_chartify", $.grapherl.dashboard, chartjs_chartify
   $.widget "grapherl.c3_chartify", $.grapherl.dashboard, c3_chartify
-
   $.widget "grapherl.chartify", $.grapherl.dashboard, c3_chartify
-
   $.widget "grapherl.chartDaemon", chartDaemon
   $.widget "grapherl.sidebar", sidebar
 
@@ -52,6 +52,3 @@ get_active_metric = ->
   MetricSideBar = UI.sideBar()
   MetricSideBar.sidebar()
   #MetricSideBar.sidebar({data: Metrics})
-
-
-
