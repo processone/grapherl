@@ -269,8 +269,10 @@
       return false;
     },
     removeMetric: function(Metric, Client) {
+      var Id;
+      Id = c3_utils.to_data_label(Client, Metric);
       return this._state.chart.unload({
-        ids: [Client + "-" + Metric]
+        ids: [Id]
       });
     },
     transform_chart: function(Type, Client, Metric) {
@@ -293,7 +295,7 @@
 
   c3_utils = {
     to_data_label: function(Client, Metric) {
-      return Client + "-" + Metric;
+      return Client + " (" + Metric + ")";
     },
     bytesToString: function(bytes) {
       var fmt;

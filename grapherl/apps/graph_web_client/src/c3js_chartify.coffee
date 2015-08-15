@@ -230,8 +230,9 @@ c3_chartify =
 
   # delete metrics from display
   removeMetric: (Metric, Client) ->
+    Id = c3_utils.to_data_label(Client, Metric)
     @_state.chart.unload({
-      ids: [Client + "-" + Metric]
+      ids: [Id]
     })
 
 
@@ -254,7 +255,8 @@ c3_chartify =
 
 c3_utils =
   to_data_label: (Client, Metric) ->
-    return Client + "-" + Metric
+    return Client + " (" + Metric + ")"
+    #return Client + "-" + Metric
 
   # taken from stackoverflow (muscially_ut)
   bytesToString: (bytes) ->

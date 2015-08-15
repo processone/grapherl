@@ -2,13 +2,19 @@
 realtime scalable monitoring server
 
 
+# Images
+Single display in Grapherl
+![Grapherl](https://github.com/processone/grapherl/blob/feat-graph-web/grapherl/images/grapherl.png)
+
+
+
 # Quick start
 Clone this repo to your system:
 
       $ git clone https://github.com/processone/grapherl.git
 
 
-**Prerequisites**:  Before executing `make` please make sure you have Erlang/OTP 17.x installed
+**Prerequisites**:  Before executing `make` please make sure you have **Erlang/OTP 17.x** installed
 
 
 Compile and run
@@ -17,14 +23,18 @@ Compile and run
       $ make && make console
 
 
-**NOTE**: `make` may fail the first time you try to execute it ! In that case just execute `make` again. If
-it fails repeatedly then mail the error at `kansi13 at gmail dot com` with the subject `grapherl compile error`,
-you will get a reply in couple of minutes.
+**NOTE**:
+If you see the following error while executing `make` then try executing `make` again.
 
+      ==> cuttlefish (escriptize)
+      ERROR: Failed to get ebin/ directory for goldrush escript_incl_apps.ERROR: escriptize failed while processing /home/kansi/Documents/ejabberd/tmp/grapherl/grapherl/_build/default/lib/cuttlefish: rebar_abort
+      ===> Hook for compile failed!
 
-# Images
-Single display in Grapherl
-![Grapherl](https://github.com/processone/grapherl/blob/feat-graph-web/grapherl/images/grapherl.png)
+      Makefile:7: recipe for target 'compile' failed
+      make: *** [compile] Error 1
+
+If `make` fails repeatedly then mail the error at `kansi13 at gmail dot com` with the subject `grapherl compile error`,
+you will get a reply within couple of minutes.
 
 
 # Getting data into Grapherl
@@ -39,6 +49,7 @@ Grapherl by default listens on port `11111`. Format for sending a metric point i
 - **value**: value for the given time_stamp.
 
 Sample python (`data_feed.py`) and erlang (`testing.erl`) modules which feed data into Grapherl located under the `grapherl/tests` directory.
+You can also play around with Grapherl by feeding data using these modules.
 
 If you have any queries regarding feeding data into Grapherl mail them at `kansi13 at gmail dot com`.
 

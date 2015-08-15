@@ -1,4 +1,5 @@
-CLIENT_PATH := $(wildcard _build/default/rel/grapherl/lib/graph_web-*)
+#CLIENT_PATH := $(wildcard _build/default/rel/grapherl/lib/graph_web-*)
+CLIENT_PATH := _build/default/rel/grapherl/lib/graph_web-0.1.0
 
 
 all: compile release
