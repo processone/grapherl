@@ -1,9 +1,8 @@
 # Grapherl
-realtime scalable monitoring server
+Real-time scalable monitoring server
 
 
 # Images
-Single display in Grapherl
 ![Grapherl](https://github.com/processone/grapherl/blob/feat-graph-web/grapherl/images/grapherl.png)
 
 
@@ -17,10 +16,15 @@ Clone this repo to your system:
 **Prerequisites**:  Before executing `make` please make sure you have **Erlang/OTP 17.x** installed
 
 
+Create directory for storing metric objects
+
+      $ sudo mkdir -p /var/db/grapherl       
+
+
 Compile and run
 
       $ cd grapherl
-      $ make && make console
+      $ make && sudo make console
 
 
 **NOTE**:
@@ -40,7 +44,7 @@ you will get a reply within couple of minutes.
 # Getting data into Grapherl
 Grapherl by default listens on port `11111`. Format for sending a metric point is as follows:
 
-         client_name/metric_name:metric_type/time_stamp:value
+      client_name/metric_name:metric_type/time_stamp:value
 
 - **metric_name**: Specify the metric name for eg. cpu_usage, online_users, memory etc.
 - **client_name**: metric_name along with client_name are used to uniquely identify a point. Client name can be anything for eg. `server01`,  `website01.com`,  `website_101`,   `1284398` etc. **NOTE** Grapherl considers client_name just as plane string meaning that there is **no** special interpretation for `website_101.com` as compared `website_101`, they are both just (different) strings for Grapherl.
@@ -137,17 +141,17 @@ You can test Grapherl using the `testing.erl` module and while you are testing y
 erlang app called `observer` which has been included in Grapherl.
 
 
-### Handling huge number metrics
+### Handling large number of metrics
 In case you want to track a lot of metrics graph_db allows the user to bootstrap ram and disk db objects
 for metrics before any data starts coming in. Doing this will be helpful becasue creating ram and disk db objects is
 a time consuming task, so while receiving such huge traffic it is advisible that the user bootstrap some of the metrics
 so that the system doesn't fall under sudden load (though the app can handle sudden loads it just to assure constant cpu usage).
 In order to bootstrap metric user needs have a file in the following format:
 
-       cpu_usage, g
-       user_count, c
-       memory_usage, g
-       system_load, g
+     cpu_usage, g
+     user_count, c
+     memory_usage, g
+     system_load, g
 
 
 each line contains the metric name and type seperated by comma. Once you have this file created, execute the following
