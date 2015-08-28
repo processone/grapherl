@@ -105,7 +105,7 @@ dashboard =
     RangePicker.on "apply.daterangepicker", (e) =>
       StartDate  = RangePicker.data('daterangepicker').startDate
       EndDate    = RangePicker.data('daterangepicker').endDate
-      console.log StartDate.unix(), EndDate.unix()
+      # console.log StartDate.unix(), EndDate.unix()
       Toolbar.trigger("udpate_info_time")
       @update_all_metrics()
 
@@ -175,7 +175,7 @@ dashboard =
       Id = e.currentTarget.id
       @options.granularity = Id
       @options.toolbar.trigger("update_info_granularity")
-      console.log @options.granularity
+      #console.log @options.granularity
       #TODO trigger event to change chart acc to granularity
 
     # display popover to change live update interval
@@ -194,7 +194,7 @@ dashboard =
         e.preventDefault()
         Val = Form.find("#interval").val()
         @options.interval = Val * 1000
-        console.log "new interval", Val
+        #console.log "new interval", Val
         Toolbar.find("[data-toggle=update-interval-popover]").popover('hide')
         if !(@options.live == false)
           Toolbar.find("#update_metrics i.live").trigger "click.update"
@@ -323,7 +323,7 @@ dashboard =
     RangePicker = @options.toolbar.find("#range_picker")
     Start = RangePicker.data('daterangepicker').startDate.unix()
     End   = RangePicker.data('daterangepicker').endDate.unix()
-    console.log "getting data range: ", Start, End
+    #console.log "getting data range: ", Start, End
     $(document).chartDaemon("get_metric_data",
       @element, Metric, Client, [Start, End], @options.granularity)
 

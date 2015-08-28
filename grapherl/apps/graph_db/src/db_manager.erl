@@ -158,7 +158,7 @@ init_db_handlers(Fd, {DbMod, CacheMod, Dir}) ->
             %% [RMn, RMt] = string:tokens(string:strip(Data, both, $\n ), ","),
             %% Mn = erlang:list_to_binary(string:strip(RMn)),
             %% Mt = erlang:list_to_binary(string:strip(RMt)),
-            io:format("starting metric ~p ~p~n", [Mn, Mt]),
+            %% io:format("starting metric ~p ~p~n", [Mn, Mt]),
             Cn = <<"metric">>,
             MetricName = db_utils:to_metric_name({Mn, Cn}),
             bootstrap_metric({Mn, Cn, Mt}, MetricName, {DbMod, open_db, live},
@@ -196,7 +196,7 @@ init_db_handlers(Fd, {DbMod, CacheMod, Dir}) ->
 %% metric maps is of the format: [{{Mid, Cn},  MetricName}, ...]
 %% creates a cache db if it doesn't exist already else return the state of the
 %% cache metric.
-handle_call({get_metric_fd, {Mid, Cn, Mt}, live}, From,  State) ->
+handle_call({get_metric_fd, {Mid, Cn, Mt}, live}, _From,  State) ->
     #{db          := DbMod
      ,cache       := CacheMod
      ,storage_dir := Dir}  = State,
@@ -206,7 +206,7 @@ handle_call({get_metric_fd, {Mid, Cn, Mt}, live}, From,  State) ->
     %case ets:lookup(?MODULE, {Mid, Cn}) of
     case fetch_fd({Mid, Cn}) of
         [] ->
-            io:format("[+] bootstraping metric: ~p ~p~n", [MetricName, From]),
+            %% io:format("[+] bootstraping metric: ~p ~p~n", [MetricName, From]),
             bootstrap_metric({Mid, Cn, Mt}, MetricName, {DbMod, init_db, live},
                              {CacheMod, open_db}, Dir),
 

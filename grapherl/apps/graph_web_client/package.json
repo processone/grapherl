@@ -1,6 +1,6 @@
 {
   "name": "graph_web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author" : "Vanshdeep Singh",
   "description": "Admin interface for Grapherl.",
   "dependencies": {},

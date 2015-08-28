@@ -450,7 +450,6 @@
           var EndDate, StartDate;
           StartDate = RangePicker.data('daterangepicker').startDate;
           EndDate = RangePicker.data('daterangepicker').endDate;
-          console.log(StartDate.unix(), EndDate.unix());
           Toolbar.trigger("udpate_info_time");
           return _this.update_all_metrics();
         };
@@ -519,8 +518,7 @@
           var Id;
           Id = e.currentTarget.id;
           _this.options.granularity = Id;
-          _this.options.toolbar.trigger("update_info_granularity");
-          return console.log(_this.options.granularity);
+          return _this.options.toolbar.trigger("update_info_granularity");
         };
       })(this));
       Toolbar.find("[data-toggle=update-interval-popover]").popover({
@@ -542,7 +540,6 @@
             e.preventDefault();
             Val = Form.find("#interval").val();
             _this.options.interval = Val * 1000;
-            console.log("new interval", Val);
             Toolbar.find("[data-toggle=update-interval-popover]").popover('hide');
             if (!(_this.options.live === false)) {
               Toolbar.find("#update_metrics i.live").trigger("click.update");
@@ -690,7 +687,6 @@
       RangePicker = this.options.toolbar.find("#range_picker");
       Start = RangePicker.data('daterangepicker').startDate.unix();
       End = RangePicker.data('daterangepicker').endDate.unix();
-      console.log("getting data range: ", Start, End);
       return $(document).chartDaemon("get_metric_data", this.element, Metric, Client, [Start, End], this.options.granularity);
     },
     inti_daterangepicker: function() {
@@ -1124,7 +1120,6 @@
     },
     load_display: function(Layout) {
       var Row, j, len, results;
-      console.log(Layout);
       results = [];
       for (j = 0, len = Layout.length; j < len; j++) {
         Row = Layout[j];
@@ -1284,7 +1279,6 @@
             method: "GET",
             url: "/metric/list",
             success: function(data) {
-              console.log(data);
               return $.event.trigger('ui.update_sideBar', [data.metric_list]);
             }
           });

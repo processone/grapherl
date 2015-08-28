@@ -57,7 +57,7 @@ graph_utils =
 
   # load bookmarked display
   load_display: (Layout) ->
-    console.log Layout
+    # console.log Layout
     for Row in Layout
       if Row.length == 1
         graph_utils.add_display(Row[0])

@@ -131,7 +131,7 @@ handle_cast(_Msg, State) ->
 %% compress/purge metric data
 handle_info(timeout,  State) ->
     #{storage_dir := DbDir, timeout := Timeout, db_mod := DbMod} = State,
-    io:format("~n[db_daemon] staring purging~n"),
+    %% io:format("~n[db_daemon] staring purging~n"),
     case db_manager:get_metric_maps() of
         {ok, MapList} ->
             purge_data(DbMod, DbDir, MapList),
@@ -185,10 +185,10 @@ purge_data(DbMod, DbDir, MetricData) ->
 
 aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, MetricData}, {DbFd, CurrType}) ->
     %% optimize granularity calculation
-    {name, BaseName}    = lists:keyfind(name, 1, MetricData),
-    %{metric_type, Type} = lists:keyfind(metric_type, 1, MetricData),
+    %% {name, BaseName}    = lists:keyfind(name, 1, MetricData),
+    %% {metric_type, Type} = lists:keyfind(metric_type, 1, MetricData),
     {ok, KeyVal}        = DbMod:read(DbFd, Cn),
-    io:format("~n[+] Compressing ~p (length: ~p)~n", [BaseName, erlang:length(KeyVal)]),
+    %% io:format("~n[+] Compressing ~p (length: ~p)~n", [BaseName, erlang:length(KeyVal)]),
 
     %% TODO optimize this
     case should_be_purged(KeyVal, CurrType) of
@@ -197,7 +197,7 @@ aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, MetricData}, {DbFd, CurrType}) ->
         {Purge, {Type, Step}} ->
             MergeFun  = db_utils:get_merge_fun(Mt), % {graph_utils, mean},
             NextType  = db_utils:get_next_type(Type),
-            io:format("[+] compressing ~p to ~p.", [Type, NextType]),
+            %% io:format("[+] compressing ~p to ~p.", [Type, NextType]),
             DbFdNext  = get_next_db_fd({Mn, Cn, Mt}, NextType, MetricData),
             ok        = merge_points(KeyVal, {Type, Step}, #{db_fd        => DbFd
                                                             ,db_fd_next   => DbFdNext
@@ -290,14 +290,14 @@ should_be_purged(KeyVal, Type) ->
         {next, stop} -> {false, stop};
         {Granularity, Step} ->
             Size    = db_utils:get_aggregation_size(Granularity),
-            io:format("[+] compressing ~p to ~p~n", [Granularity, db_utils:get_next_type(Granularity)]),
+            %% io:format("[+] compressing ~p to ~p~n", [Granularity, db_utils:get_next_type(Granularity)]),
             {Hd, _} = erlang:hd(KeyVal),
             {Tl, _} = erlang:hd(lists:reverse(KeyVal)),
             Diff    = erlang:abs(graph_utils:binary_to_realNumber(Hd) -
                                      graph_utils:binary_to_realNumber(Tl)),
 
             %io:format("[+] Hd : ~p, Tl: ~p~n", [Hd, Tl]),
-            io:format("[+] Required time interval: ~p~n[+] Available time interval : ~p~n", [Size, Diff]),
+            %% io:format("[+] Required time interval: ~p~n[+] Available time interval : ~p~n", [Size, Diff]),
             Ret = if Diff >= Size -> true; true -> false end,
             {Ret, {Granularity, Step}}
     end.

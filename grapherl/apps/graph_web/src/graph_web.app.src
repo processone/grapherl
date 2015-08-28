@@ -1,6 +1,6 @@
 {application, graph_web,
  [{description, "An OTP web application for Grapherl."}
- ,{vsn, "0.1.0"}
+ ,{vsn, "0.2.0"}
  ,{registered, []}
  ,{mod, {'graph_web_app', []}}
  ,{applications,

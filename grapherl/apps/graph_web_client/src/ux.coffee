@@ -51,7 +51,7 @@ sidebar =
           method: "GET"
           url   : "/metric/list"
           success: (data) ->
-            console.log data
+            #console.log data
             $.event.trigger('ui.update_sideBar', [data.metric_list])
         )
 
