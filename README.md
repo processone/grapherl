@@ -26,6 +26,8 @@ Compile and run
       $ cd grapherl
       $ make && sudo make console
 
+Grapherl client is located at **localhost:9090**
+
 
 **NOTE**:
 If you see the following error while executing `make` then try executing `make` again.
@@ -40,14 +42,19 @@ If you see the following error while executing `make` then try executing `make` 
 If `make` fails repeatedly then mail the error at `kansi13 at gmail dot com` with the subject `grapherl compile error`,
 you will get a reply within couple of minutes.
 
+**If you any question/issues regarding Grapherl you can also find me (kansi) at #erlang irc**
+
 
 # Getting data into Grapherl
 Grapherl by default listens on port `11111`. Format for sending a metric point is as follows:
 
       client_name/metric_name:metric_type/time_stamp:value
 
+      randomClient1/memory_usage:g/1441005678:1002938389   # example
+
+
 - **metric_name**: Specify the metric name for eg. cpu_usage, online_users, memory etc.
-- **client_name**: metric_name along with client_name are used to uniquely identify a point. Client name can be anything for eg. `server01`,  `website01.com`,  `website_101`,   `1284398` etc. **NOTE** Grapherl considers client_name just as plane string meaning that there is **no** special interpretation for `website_101.com` as compared `website_101`, they are both just (different) strings for Grapherl.
+- **client_name**: metric_name along with client_name are used to uniquely identify a point. Client name can be anything for eg. `server01`,  `website01.com`,  `website 101`,   `1284398` etc. **NOTE** Grapherl considers client_name just as plane string meaning that there is **no** special interpretation for `website_101.com` as compared `website_101`, they are both just (different) strings for Grapherl.
 - **metric_type**: there are 2 types allowed `g` (gauge) and `c` (counter). Metric types are discussed [here](https://github.com/etsy/statsd/blob/master/docs/metric_types.md). By default for a gauge metric values are averaged over and interval and for counter metric values are added over an interval.
 - **time_stamp**: epoch time.
 - **value**: value for the given time_stamp.
@@ -84,6 +91,7 @@ a client (i.e. a server which send total number of online users each second). Th
 
 
 ### configrations
+The following configrations can be found in file `graph_db.app.src` located at `grapherl/apps/graph_db/src/graph_db.app.src`
 
     {storage_dir, <<"/var/db/grapherl/">>}
 Specifies directory location where graph_db will store data points on disk. Note, user should make sure that
