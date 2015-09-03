@@ -30,16 +30,7 @@ Grapherl client is located at **localhost:9090**
 
 
 **NOTE**:
-If you see the following error while executing `make` then try executing `make` again.
-
-      ==> cuttlefish (escriptize)
-      ERROR: Failed to get ebin/ directory for goldrush escript_incl_apps.ERROR: escriptize failed while processing /home/kansi/Documents/ejabberd/tmp/grapherl/grapherl/_build/default/lib/cuttlefish: rebar_abort
-      ===> Hook for compile failed!
-
-      Makefile:7: recipe for target 'compile' failed
-      make: *** [compile] Error 1
-
-If `make` fails repeatedly then mail the error at `kansi13 at gmail dot com` with the subject `grapherl compile error`,
+If `make` fails then mail the error at `kansi13 at gmail dot com` with the subject `grapherl compile error`,
 you will get a reply within couple of minutes.
 
 **If you any question/issues regarding Grapherl you can also find me (kansi) at #erlang irc**
