@@ -1,6 +1,6 @@
 {application, graph_db,
  [{description, "Graph_db: OTP application assisting in data storage of Grapherl."}
- ,{vsn, "0.2.0"}
+ ,{vsn, "0.2.1"}
  ,{registered, []}
  ,{mod, {'graph_db_app', []}}
  ,{applications,

@@ -97,7 +97,7 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call({get_data, Query}, _From, State) ->
     %% for optimization we can cache query.
-    io:format("getting data ~p~n", [Query]),
+    %% io:format("getting data ~p~n", [Query]),
     {ok, Data} = load_data(Query),
 
     {reply, {ok, Data}, State};
@@ -310,10 +310,12 @@ reamining_range(Data, {_StartR, EndR}) ->
 %% compress data to match it to queried granularity
 %% ============================================================================
 process_data(Data, Granularity, Type) ->
+    %io:format("sending ~p~n", [Data]),
     {ok, Data0} = case Granularity of
                       <<"sec">> -> {ok, Data};
                       _ -> compress_data(Data, Granularity, Type)
                   end,
+    %io:format("sending ~p~n", [Data0]),
     if
         erlang:length(Data0) > 1000 ->
             {ok, NewG}  = db_utils:lower_query_granularity(Granularity),
@@ -349,8 +351,13 @@ compress_data0([], _, _Type, Interval, [], Acc) when Interval > 0 ->
 
 compress_data0([], _, Type, Interval, TAcc, Acc) when Interval > 0 ->
     %% compress the remaining points anyway
-    {ok, NewKey, NewVal} = compress_acc(TAcc, Type),
-    {ok, lists:ukeysort(1, [{NewKey, NewVal} | Acc])};
+    if
+        Acc == [] ->
+            {ok, lists:ukeysort(1, TAcc)};
+        true ->
+            {ok, NewKey, NewVal} = compress_acc(TAcc, Type),
+            {ok, lists:ukeysort(1, [{NewKey, NewVal} | Acc])}
+    end;
 
 %% in case we have Data at the required granularity then Interval =< 0 for every next
 %% point. So in that case we directly add then to Acc

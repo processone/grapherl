@@ -1,0 +1,35 @@
+%% upgrade for graph_db
+{"0.2.1",
+ [{"0.2.0", [
+             {load_module, query_handler},
+             {load_module, db_utils},
+             {load_module, db_ets},
+             {load_module, db_levelDB},
+
+             {load_module, router_worker},
+             {load_module, router_manager},
+
+             {load_module, db_worker},
+             {load_module, db_daemon},
+             {load_module, db_manager},
+
+             {load_module, graph_db_sup}
+
+            ]
+  }],
+ [{"0.2.0", [
+             {load_module, graph_db_sup},
+
+             {load_module, db_manager},
+             {load_module, db_daemon},
+             {load_module, db_worker},
+
+             {load_module, router_manager},
+             {load_module, router_worker},
+
+             {load_module, db_utils},
+             {load_module, query_handler},
+             {load_module, db_levelDB},
+             {load_module, db_ets}
+            ]
+  }]}.

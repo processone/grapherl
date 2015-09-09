@@ -17,8 +17,8 @@ spawn_clients(Num, Port, Packets) ->
     erlang:spawn(
       fun() ->
               {ok, Socket} = gen_udp:open(Port),
-              %Name = "www.server" ++ erlang:integer_to_list(Port) ++ ".com",
-              Name = "metric_" ++ erlang:integer_to_list(Port),
+              Name = "www.server" ++ erlang:integer_to_list(Port) ++ ".com",
+              %Name = "metric_" ++ erlang:integer_to_list(Port),
               TS   = unix_time(),
               client(Name, Socket, Packets, TS)
       end),
@@ -32,15 +32,15 @@ client(Name, Socket, Num, Ts) ->
     Ret  = gen_udp:send(Socket, {127,0,0,1}, 11111, Data),
     io:format("[+] Sending ~p ~p ~n", [Data, Ret]),
     timer:sleep(20),
-    client(Name, Socket, Num -1, Ts + 60).
+    client(Name, Socket, Num -1, Ts + 5).
 
 
 %% generate random data point
 data(Name, Ts) ->
     Val  = erlang:integer_to_list(crypto:rand_uniform(1000000, 100000000)),
     TsS  = erlang:integer_to_list(Ts),
-    %Data = Client ++ "/cpu_usage:g/" ++ TsS ++ ":" ++ Val, 
-    Data = "www.site01.com/" ++ Name ++ ":g/" ++ TsS ++ ":" ++ Val, 
+    Data = Name ++ "/cpu_usage:g/" ++ TsS ++ ":" ++ Val, 
+    %Data = "www.site01.com/" ++ Name ++ ":g/" ++ TsS ++ ":" ++ Val, 
     Data.
 
 

@@ -1,9 +1,10 @@
-# Grapherl
+# ![Grapherl](https://github.com/processone/grapherl/blob/dev/grapherl/images/grapherl_logo.png "Logo")
+
 Real-time scalable monitoring server
 
 
 # Images
-![Grapherl](https://github.com/processone/grapherl/blob/feat-graph-web/grapherl/images/grapherl.png)
+![Grapherl](https://github.com/processone/grapherl/blob/dev/grapherl/images/grapherl.png)
 
 
 
@@ -30,10 +31,28 @@ Grapherl client is located at **localhost:9090**
 
 
 **NOTE**:
-If `make` fails then mail the error at `kansi13 at gmail dot com` with the subject `grapherl compile error`,
+If `make` fails then mail the error at `kansi13 at gmail dot com` with the subject `Grapherl compile error`,
 you will get a reply within couple of minutes.
 
 **If you any question/issues regarding Grapherl you can also find me (kansi) at #erlang irc**
+
+
+# Upgrading Grapherl : appup
+For users who wish to upgrade from older version of Grapherl to newer one without restarting the Erlang VM they
+can execute the following:
+
+      $ python upgrade.py VERSION_OF_YOUR_RUNNING_RELEASE
+      $ python upgrade.py 0.2.0           # example
+
+
+The above example shows how a user who is currently running release version `0.2.0` can updgrade to the latest release configured
+in `upgrade.py`
+
+## WARNING
+For the upgrade to be successful following should be kept in mind
+
+- The `upgrade.py` is hardcoded to upgrade Grpaherl to the latest version in the commit.
+- To have higher success rate during upgrade, user is advised to upgrade from one version lower for eg. `0.2.0` to `0.2.1`. Jumping from version lower one (eg  `0.2.0` to `0.2.3`) has not been tested.
 
 
 # Getting data into Grapherl
@@ -56,49 +75,49 @@ You can also play around with Grapherl by feeding data using these modules.
 If you have any queries regarding feeding data into Grapherl mail them at `kansi13 at gmail dot com`.
 
 
-# Configrations
-Grapherl consists of 2 components **graph_db** which receives UDP data and stores it, **graph_web** which retrives this
+# Configurations
+Grapherl consists of 2 components **graph_db** which receives UDP data and stores it, **graph_web** which retrieves this
 data and creates nice visualizations for the user.
 
 ## graph_db
 **Brief description** :
 
-Before we discuss the various configrations we give an overview of how this subapp works
-so that the user can wisely configure these options. All incoming data is received by graph_db, muliple processes
+Before we discuss the various configurations we give an overview of how this subapp works
+so that the user can wisely configure these options. All incoming data is received by graph_db, multiple processes
 (known as router_workers) wait on the socket to receive high amount of UDP traffic.
 
 These received packets are forwarded to a process called db_worker (which is pool of worker processes) which
-decodes this received packet and stores it in ram (inside ETS tables). All incoming points are aggreated into ram
+decodes this received packet and stores it in ram (inside ETS tables). All incoming points are aggregated into ram
 and after timeout are written to disk.
 
-Further grapherl expects huge amount of data, so storing such amount of data as is for long is not feasible. Hence,
-grapherl constanly purges data according to a pre-defined scheme. To understand this scheme let consider that
+Further Grapherl expects huge amount of data, so storing such amount of data as is for long is not feasible. Hence,
+Grapherl constantly purges data according to a predefined scheme. To understand this scheme let consider that
 a client (i.e. a server which send total number of online users each second). The purging scheme works as follows:
 
-  - Points which are aggreated each 1 sec are kept as is for one day. So, we would have around 86400 points at the end of the day.
+  - Points which are aggregated each 1 sec are kept as is for one day. So, we would have around 86400 points at the end of the day.
   - After one day these point are purged to a granularity of one minute i.e. all points in one minute are purged and value is averaged (or processed according to the metric type). Points at a granularity of minute are stored for a week.
   - After a week, points at granularity of minute are purged to granularity of hour and kept for a year.
   - After a year, points at granularity of hour are purged to day and kept indefinitely.
 
 
-### configrations
-The following configrations can be found in file `graph_db.app.src` located at `grapherl/apps/graph_db/src/graph_db.app.src`
+### Configurations
+The following configurations can be found in file `graph_db.app.src` located at `grapherl/apps/graph_db/src/graph_db.app.src`
 
     {storage_dir, <<"/var/db/grapherl/">>}
 Specifies directory location where graph_db will store data points on disk. Note, user should make sure that
-directory exits and should start grapherl with necessary permissions (i.e. root permissions in this case).
+directory exits and should start Grapherl with necessary permissions (i.e. root permissions in this case).
 
     {ports, [11111]}
-Specifies ports on which graph_db will listen. User can specify muliple port for eg. `{ports, [11111, 11112]}`
+Specifies ports on which graph_db will listen. User can specify multiple port for eg. `{ports, [11111, 11112]}`
 
     {num_routers, 3}
-Router processes receive incoming UDP traffic. This configration specifies the number of processes which will monitor
-**each** opened socket and receive incoming data. The current configration can handle around 1 million points per
+Router processes receive incoming UDP traffic. This configuration specifies the number of processes which will monitor
+**each** opened socket and receive incoming data. The current configuration can handle around 1 million points per
 minute. It should be noted that mindlessly increasing the number of processes monitoring the socket can degrade
 performance.
 
     {cache_to_disk_timeout, 60000}
-Specifies the timeout (in millisecond) after which the aggerated points stored in ram will dumped onto the disk.
+Specifies the timeout (in millisecond) after which the accumulated points stored in ram will dumped onto the disk.
 
     {db_daemon_timeout, 60000}
 This options defines the timeout (in millisecond) after which data points stored (on disk) are checked for purging.
@@ -115,35 +134,35 @@ custom module user can refer to the existing implementation or submit an issue t
 ### How to optimize you graph_db configuration
 Configuring graph_db according to the expected load is very crucial to achieve best performance. For eg. too much
 router_worker processes can degrade performance, not having or having more number of db_worker than the hardware
-can support will also degrade perfomance. Also cache_to_disk_timeout should be carefully decided in accordance with
+can support will also degrade performance. Also cache_to_disk_timeout should be carefully decided in accordance with
 the expected UDP traffic so that you don't run out of ram. Lastly, keeping db_daemon_timeout very low can lead to
 unnecessary processing hence degrading performance.
 
-So, we discuss some perfomance details of graph_db. NOTE this testing was done on second generation
-Intel(R) Core(TM) i5-2430M CPU (4 processors). The grapherl directory contains a module named `testing.erl`,
+So, we discuss some performance details of graph_db. NOTE this testing was done on second generation
+Intel(R) Core(TM) i5-2430M CPU (4 processors). The Grapherl directory contains a module named `testing.erl`,
 which has been used to test graph_db. Following are some results:
   - with 3 router_workers monitoring one socket graph_db can handle around 1 million data points per minute beyond this data loss increases considerably.
   - these 1 million data points we gracefully handled buy 3 db_workers but its highly recommended that the user allow more db_workers as these processes are also responsible for other tasks too. So, when handling such high data its good have more db_workers so that load on each worker is less.
-  - It must be duly noted by the user that more number of db_workers will directly increase the cpu usage. For eg. having 6 db_workers on a system that has only 4 processors is not advisible. The default number i.e. 3, works fine on a system with 4 processors.
+  - It must be duly noted by the user that more number of db_workers will directly increase the cpu usage. For eg. having 6 db_workers on a system that has only 4 processors is not advisable. The default number i.e. 3, works fine on a system with 4 processors.
 
   
 ### Handling huge number of data points
 If you are someone who wants to go beyond receiving 1 million points per minute, Grapherl has something for you.
-You don't need to spin up another grapherl instance for that, all you need to do is throw some more hardware at
-Grapherl and tweak the configrations. Assuming you have bought more hardware, to handle more data it advisable
+You don't need to spin up another Grapherl instance for that, all you need to do is throw some more hardware at
+Grapherl and tweak the configurations. Assuming you have bought more hardware, to handle more data it advisable
 to receive data on multiple ports for eg. if you use 2 ports to receive data you can already receive 2 million
 points per minute. Now, to handle these data points you will need to have more db workers (minimum 6). And since you are
-going to increase db_workers make sure you have sufficient cpu threads (atleast 8 if you run 6 db_workers). 
+going to increase db_workers make sure you have sufficient cpu threads (at least 8 if you run 6 db_workers). 
 
-**NOTE**: The configrations suggested in this section are mere speculation based on previously discussed testing results.
+**NOTE**: The configurations suggested in this section are mere speculation based on previously discussed testing results.
 You can test Grapherl using the `testing.erl` module and while you are testing you can monitor the system using native
 erlang app called `observer` which has been included in Grapherl.
 
 
 ### Handling large number of metrics
 In case you want to track a lot of metrics graph_db allows the user to bootstrap ram and disk db objects
-for metrics before any data starts coming in. Doing this will be helpful becasue creating ram and disk db objects is
-a time consuming task, so while receiving such huge traffic it is advisible that the user bootstrap some of the metrics
+for metrics before any data starts coming in. Doing this will be helpful because creating ram and disk db objects is
+a time consuming task, so while receiving such huge traffic it is advisable that the user bootstrap some of the metrics
 so that the system doesn't fall under sudden load (though the app can handle sudden loads it just to assure constant cpu usage).
 In order to bootstrap metric user needs have a file in the following format:
 
@@ -153,16 +172,16 @@ In order to bootstrap metric user needs have a file in the following format:
      system_load, g
 
 
-each line contains the metric name and type seperated by comma. Once you have this file created, execute the following
-in the grapherl (erlang) shell:
+each line contains the metric name and type separate by comma. Once you have this file created, execute the following
+in the Grapherl (erlang) shell:
 
      db_manager:pre_process_metric("/absolute/path/to/metric/file")
 
-NOTE: the above routine of boostraping metric is purely optional. This is be used in case you want to track a lot of metrics
+NOTE: the above routine of bootstrapping metric is purely optional. This is be used in case you want to track a lot of metrics
 and that too when you expect to receive a burst of new data points none of which has its corresponding metric objects created.
 
 
-When tracking a large number of metrics it is advisible to increase the `ulimit`. For eg. if you are tracking like 500
+When tracking a large number of metrics it is advisable to increase the `ulimit`. For eg. if you are tracking like 500
 different metrics then set ulimit to `ulimit -n 10000`.
 
 
@@ -198,7 +217,7 @@ Now we discuss various features offered on the client side.
   - User can specify the range, granularity at which the graphs are to be displayed.
   - To display live data you can click the live button and also configure the interval after which new data will be requested from the server.
   - User can change the display type for any metric by clicking the gear button in display toolbar. Currently 3 types of graphs are supported (bar, line, spline)
-  - If the data is not available at the current selected granularity then it will serverd at either higher or lower granularity (which ever is available).
+  - If the data is not available at the current selected granularity then it will served at either higher or lower granularity (which ever is available).
   - User can also add x/y grids line, additional y axis (for different scales), subgraph view or rotate axis. All these can be configured by clicking on the stacked bars icon in display toolbar.
 
 
