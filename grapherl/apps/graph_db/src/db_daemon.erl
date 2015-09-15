@@ -75,7 +75,7 @@ init([Args]) ->
     {ok, [DbMod]} = graph_utils:get_args(Args, [db_mod]),
 
     Pid = graph_db_sup:ets_sup_pid(),
-    io:format("[+] Starting db_daemon with log cache ets_sup_pid: ~p", [Pid]),
+    io:format("[+] Starting db_daemon with log cache ets_sup_pid: ~p~n", [Pid]),
     ets:new(?MODULE, [set, public, named_table
                      ,{heir, Pid, none}
                      ,{write_concurrency, true}
@@ -131,9 +131,10 @@ handle_cast(_Msg, State) ->
 %% compress/purge metric data
 handle_info(timeout,  State) ->
     #{storage_dir := DbDir, timeout := Timeout, db_mod := DbMod} = State,
-    %% io:format("~n[db_daemon] staring purging~n"),
+
     case db_manager:get_metric_maps() of
         {ok, MapList} ->
+            %% io:format("~n[db_daemon] staring purging~n"),
             purge_data(DbMod, DbDir, MapList),
             {noreply, State, Timeout};
         _ ->
@@ -174,12 +175,17 @@ code_change(_OldVsn, State, _Extra) ->
 
 purge_data(DbMod, DbDir, MetricData) ->
     %purge_data(DbMod, DbDir, MetricData, 0),
-    PurgeData = fun({{Mn, Cn}, Data}) ->
-                        {{db_fd, live}, DbFd} = lists:keyfind({db_fd, live}, 1, Data),
-                        {metric_type, Mt}     = lists:keyfind(metric_type, 1, Data),
-                        aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, Data}, {DbFd, live})
-                end,
-    graph_utils:run_threads(8, MetricData, PurgeData),
+    PurgeDataFunc = 
+        fun({{Mn, _}, Data}) ->
+                {ok, List} = db_manager:get_metric_clients(Mn),
+                lists:map(
+                  fun(Cn) ->
+                          {{db_fd, live}, DbFd} = lists:keyfind({db_fd, live}, 1, Data),
+                          {metric_type, Mt}     = lists:keyfind(metric_type, 1, Data),
+                          aggregate_data(DbDir, DbMod, {{Mn, Cn, Mt}, Data}, {DbFd, live})
+                  end, List)
+        end,
+    graph_utils:run_threads(8, MetricData, PurgeDataFunc),
     db_utils:gc().
 
 

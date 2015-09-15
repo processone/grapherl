@@ -27,6 +27,7 @@ get_data(From, Query) ->
 
 %% Collect metric data from all nodes
 get_metric_list() ->
+    %% db_manager:get_all_metric_clients().
     {ok, Maps} = db_manager:get_metric_maps(),
     List = lists:map(
              fun({{MetricName, _}, MetricData}) ->

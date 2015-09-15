@@ -25,8 +25,8 @@
    ,{msg_queue_block, 5000}                     % change carefully, incrementing might degrade performance.
    ,{storage_dir, <<"/var/db/grapherl/">>}        % storage location on disk. NOTE: based on sotrage dir user might
                                                 % need to run grapherl with root permission
-   ,{cache_to_disk_timeout, 180000}             % timeout (in milliseconds) after which metric cache is dumped to disk
-   ,{db_daemon_timeout, 120000}                 % timeout after which data on disk is check for compression and purging
+   ,{cache_to_disk_timeout, 300000}             % timeout (in milliseconds) after which metric cache is dumped to disk
+   ,{db_daemon_timeout, 420000}                 % timeout after which data on disk is check for compression and purging
    ,{db_manager_state_dump_timeout, 600000}     % timeout after which db_manager saves its state.
    ]}
  ,{modules, []}

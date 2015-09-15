@@ -176,12 +176,14 @@ handle_cast({direct_store, Packet}, #{cache_mod := CacheMod, cache := Cache} = S
     end;
 
 %% dump metric cache to disk
-handle_cast({dump_to_disk, {Mn, Cn, Mt}}, #{db_mod := Db, cache_mod := Cache} = State) ->
-    {ok, CacheFd, DbFd}  = db_manager:get_metric_fd({Mn, Cn, Mt}),
-    {ok, Data}           = Cache:read(CacheFd, Cn),
-    %%io:format("~n[+] Writing cache to disk. (Size ~p) ~n", [erlang:length(Data)]),
-    {ok, success}        = Db:insert_many(DbFd, Cn, Data),
-    {ok, success}        = Cache:clear_client(CacheFd, Cn),
+handle_cast({dump_to_disk, {Mn, Mt}}, #{db_mod := Db, cache_mod := Cache} = State) ->
+    {ok, CacheFd, DbFd}  = db_manager:get_metric_fd({Mn, any, Mt}),
+    {ok, Data}           = Cache:read_all(CacheFd),
+    lists:map(fun({Client, DataList}) ->
+                      {ok, success} = Db:insert_many(DbFd, Client, DataList),
+                      {ok, success} = Cache:clear_client(CacheFd, Client)
+              end, Data),
+
     {noreply, State};
 
 handle_cast(_Msg, State) ->

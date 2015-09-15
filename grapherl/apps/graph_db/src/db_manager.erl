@@ -8,8 +8,11 @@
         ,get_metric_fd/1
         ,get_metric_fd/2
         ,get_metric_maps/0
+        ,get_metric_clients/1
+        ,get_all_metric_clients/0
         ,load_metric_map/1
         ,pre_process_metric/1
+        ,load_clients/0
         ]).
 
 %% gen_server callbacks
@@ -20,6 +23,7 @@
          terminate/2,
          code_change/3]).
 
+-define(INDEX, metric_client_index).
 %-record(state, {}).
 
 %%%===================================================================
@@ -49,10 +53,6 @@ get_metric_fd({Mn, Cn, Mt}, Granularity) ->
             {ok, CacheFd, DbFd}
     end.
 
-%% return all metric maps
-get_metric_maps() ->
-    MetricData = lists:map(fun([{K,V}]) -> {K,V} end, ets:match(?MODULE, '$1')),
-    {ok, MetricData}.
 
 
 get_metric_maps({Mn, Cn, Mt}, Granularity) ->
@@ -62,6 +62,7 @@ get_metric_maps({Mn, Cn, Mt}, Granularity) ->
         [] when Granularity =:= live ->
             %io:format("metric don't exits calling gen_server ~p~n", [{Cn, self()}]),
             gen_server:call(?MODULE, {get_metric_fd, {Mn, Cn, Mt}, live}),
+            update_client_list(Mn, Cn),
             [{_Key, Value}] = fetch_fd({Mn, Cn}), %ets:lookup(?MODULE, {Mn, Cn}),
             {ok, Value};
 
@@ -71,8 +72,13 @@ get_metric_maps({Mn, Cn, Mt}, Granularity) ->
          [] ->
             {false, error};
         [{_Key, Value}] ->
+            update_client_list(Mn, Cn),
             {ok, Value}
     end.
+
+
+update_client_list(Mn, Cn) ->
+    store_clients(Mn, Cn).
 
 
 load_metric_map({Mn, Cn}) ->
@@ -83,6 +89,45 @@ load_metric_map({Mn, Cn}) ->
         [{_Key, Value}] ->
             {ok, Value}
     end.
+
+
+%% =========================================================================
+%% return all metric maps
+%% NOTE: this function shouldn't call db_manger becasue it is being used in
+%% termiate() to store state.
+get_metric_maps() ->
+    MetricData = lists:filtermap(fun([{K,V}]) -> {true, {K,V}} end, 
+                                 ets:match(?MODULE, '$1')),
+    {ok, MetricData}.
+
+
+get_metric_clients(Mn) ->
+    case ets:match(?INDEX, {{Mn, '$1'}, '_'}) of
+        '$end_of_table' ->
+            {ok, []};
+        List ->
+            MCList = lists:flatten(List),
+            {ok, MCList}
+    end.
+
+
+get_all_metric_clients() ->
+    case ets:match(?INDEX, {'$1', '_'}) of
+        '$end_of_table' ->
+            {ok, []};
+        List ->
+            MCList = lists:foldl(
+                       fun({Mn, Client}, Acc) ->
+                               case lists:keyfind(Mn, 1, Acc) of
+                                   false -> [{Mn, [Client]} | Acc];
+                                   {Mn, Clients} ->
+                                       lists:keystore(Mn, 1, Acc,
+                                                      {Mn, [Client | Clients]})
+                               end
+                       end, [], lists:flatten(List)),
+            {ok, MCList}
+    end.
+
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -119,6 +164,13 @@ init([Args]) ->
     %% for persistance and to handle crash.
     reload_state(DbMod, CacheMod, Dir),
 
+    %% spawn an ets table to store metric client list for faster access
+    Pid = graph_db_sup:ets_sup_pid(),
+    ets:new(?INDEX, [set, public, named_table
+                    ,{heir, Pid, none}
+                    ,{write_concurrency, false}
+                    ,{read_concurrency, true}]),
+
     {ok, StateSaveTimeout} = application:get_env(graph_db, 
                                                  db_manager_state_dump_timeout),
     timer:send_interval(StateSaveTimeout, {save_state}),
@@ -134,6 +186,21 @@ reload_state(DbMod, CacheMod, Dir) ->
         _  ->
             {ok, success}
     end.
+
+
+load_clients() ->
+    {ok, Maps} = db_manager:get_metric_maps(),
+    lists:map(
+      fun({{MetricName, _}, MetricData}) ->
+              {ok, [DbFd, CacheFd]} =
+                  graph_utils:get_args(MetricData, [{db_fd, live},
+                                                    cache_fd]),
+              {ok, Clients0} = db_worker:get_clients(db, DbFd),
+              {ok, Clients1} = db_worker:get_clients(cache, CacheFd),
+              Clients = lists:usort(lists:flatten([Clients0, Clients1])),
+              store_clients(MetricName, Clients)
+      end, Maps),
+    {ok, success}.
 
 
 %% load db_manager ets dump from disk
@@ -266,6 +333,11 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({update_client_list, Mn, Cn}, State) ->
+    %% this will not match any ets object that contains metric Fds because
+    %% the order is reversed i.e {Mn, fds} vs {clients, Mn}
+    store_clients(Mn, Cn),
+    {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -281,6 +353,7 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 %% dump metric cache to disk
 handle_info({cache_to_disk, MetricId}, State) ->
+    %% io:format("~n[+] dump cache to disk state~n", []),
     db_worker:dump_data(MetricId),
     {noreply, State};
 
@@ -308,9 +381,9 @@ terminate(Reason, #{db := DbMod, cache := CacheMod}) ->
     io:format("~n[+] Saving db_manager state ... reason ~p~n", [Reason]),
     case Reason of
         shutdown ->
-            Metrics     = ets:match(?MODULE, '$1'),
-            CleanMetric =
-                fun([{_Key, Value}]) ->
+            {ok, Metrics} = get_metric_maps(), %ets:match(?MODULE, '$1'),
+            CleanMetric   =
+                fun({_Key, Value}) ->
                         {ok, [Name
                              ,CacheFd
                              ,DbFd
@@ -348,9 +421,11 @@ dump_state() ->
     {ok, FFd} = file:open(FilePath, [write]),
     ets:foldl(
       fun({{Mn, _Cn}, Value}, _Acc) ->
+
               {ok, [Mt]} = graph_utils:get_args(Value, [metric_type]),
               file:write(FFd, erlang:binary_to_list(
                                 <<Mn/binary, ", ", Mt/binary, "\n">>))
+
       end, 0, ?MODULE),
     file:close(FFd).
 
@@ -369,19 +444,19 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 %% initalize metric ram and db instances
-bootstrap_metric({Mid, Cn, Mt}, MetricName, {DbMod, DFun, Type}, {CacheMod, CFun}, Dir) ->
+bootstrap_metric({Mid, _Cn, Mt}, MetricName, {DbMod, DFun, Type}, {CacheMod, CFun}, Dir) ->
 
     %% create ets table as direct children of graph_db_sup
     {ok, CacheFd} = get_cache_fd(Mid,  {CacheMod, CFun, Dir}),
     {ok, DbFd}    = create_db(DbMod, DFun, {MetricName, Dir}),
     {ok, Timeout} = application:get_env(graph_db, cache_to_disk_timeout),    
-    {ok, Tref}    = timer:send_interval(Timeout, {cache_to_disk, {Mid, Cn, Mt}}),
+    {ok, Tref}    = timer:send_interval(Timeout, {cache_to_disk, {Mid, Mt}}),
 
-    MetricState = {{Mid, Cn}, [{{db_fd, Type}, DbFd}
-                              ,{name,MetricName}
-                              ,{metric_type, Mt}
-                              ,{tref, Tref}
-                              ,{cache_fd, CacheFd}]},
+    MetricState = {{Mid, fds}, [{{db_fd, Type}, DbFd}
+                               ,{name,MetricName}
+                               ,{metric_type, Mt}
+                               ,{tref, Tref}
+                               ,{cache_fd, CacheFd}]},
 
     ets:insert(?MODULE, MetricState).
 
@@ -411,6 +486,16 @@ fetch_fd({Mn, _}) ->
 store_fd({Key, Val}) ->
     ets:insert(?MODULE, {Key, Val}).
 
+
+store_clients(Mn, Cn) ->
+    ets:insert(?INDEX, {{Mn, Cn}, {}}).
+    %% case ets:match(?MODULE, {{clients, Mn}, '$1'}, 1) of
+    %%     '$end_of_table' ->
+    %%         ets:insert(?MODULE, {{clients, Mn}, [Cn]});
+    %%     {[List], _} ->
+    %%         ListNew = lists:flatten([Cn | List]),
+    %%         ets:insert(?MODULE, {{clients, Mn}, ListNew})
+    %% end.
 
 
 %% pre_process_metric/1 : input is a comma seperated file where each line

@@ -16,7 +16,9 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    graph_db_sup:start_link().
+    Ret = graph_db_sup:start_link(),
+    db_manager:load_clients(),
+    Ret.
 
 %%--------------------------------------------------------------------
 stop(_State) ->

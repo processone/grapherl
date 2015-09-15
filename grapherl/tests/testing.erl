@@ -39,7 +39,7 @@ client(Name, Socket, Num, Ts) ->
 data(Name, Ts) ->
     Val  = erlang:integer_to_list(crypto:rand_uniform(1000000, 100000000)),
     TsS  = erlang:integer_to_list(Ts),
-    Data = Name ++ "/cpu_usage:g/" ++ TsS ++ ":" ++ Val, 
+    Data = Name ++ "/cpu_usage1:g/" ++ TsS ++ ":" ++ Val, 
     %Data = "www.site01.com/" ++ Name ++ ":g/" ++ TsS ++ ":" ++ Val, 
     Data.
 
