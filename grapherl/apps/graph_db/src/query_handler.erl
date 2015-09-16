@@ -27,19 +27,19 @@ get_data(From, Query) ->
 
 %% Collect metric data from all nodes
 get_metric_list() ->
-    %% db_manager:get_all_metric_clients().
-    {ok, Maps} = db_manager:get_metric_maps(),
-    List = lists:map(
-             fun({{MetricName, _}, MetricData}) ->
-                     {ok, [DbFd, CacheFd]} =
-                         graph_utils:get_args(MetricData, [{db_fd, live},
-                                                           cache_fd]),
-                     {ok, Clients0} = db_worker:get_clients(db, DbFd),
-                     {ok, Clients1} = db_worker:get_clients(cache, CacheFd),
-                     Clients = lists:usort(lists:flatten([Clients0, Clients1])),
-                     {MetricName, Clients}
-             end, Maps),
-    {ok, List}.
+    db_manager:get_all_metric_clients().
+    %% {ok, Maps} = db_manager:get_metric_maps(),
+    %% List = lists:map(
+    %%          fun({{MetricName, _}, MetricData}) ->
+    %%                  {ok, [DbFd, CacheFd]} =
+    %%                      graph_utils:get_args(MetricData, [{db_fd, live},
+    %%                                                        cache_fd]),
+    %%                  {ok, Clients0} = db_worker:get_clients(db, DbFd),
+    %%                  {ok, Clients1} = db_worker:get_clients(cache, CacheFd),
+    %%                  Clients = lists:usort(lists:flatten([Clients0, Clients1])),
+    %%                  {MetricName, Clients}
+    %%          end, Maps),
+    %% {ok, List}.
 
 %% retrieve metric data
 get_metric_data(Metric, Client, {Start, End}, Granularity) ->

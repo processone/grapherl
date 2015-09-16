@@ -177,7 +177,7 @@ handle_cast({direct_store, Packet}, #{cache_mod := CacheMod, cache := Cache} = S
 
 %% dump metric cache to disk
 handle_cast({dump_to_disk, {Mn, Mt}}, #{db_mod := Db, cache_mod := Cache} = State) ->
-    {ok, CacheFd, DbFd}  = db_manager:get_metric_fd({Mn, any, Mt}),
+    {ok, CacheFd, DbFd}  = db_manager:get_metric_fd({Mn, false, Mt}),
     {ok, Data}           = Cache:read_all(CacheFd),
     lists:map(fun({Client, DataList}) ->
                       {ok, success} = Db:insert_many(DbFd, Client, DataList),
