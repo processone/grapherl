@@ -108,7 +108,10 @@ load_clients() ->
               {ok, Clients0} = db_worker:get_clients(db, DbFd),
               {ok, Clients1} = db_worker:get_clients(cache, CacheFd),
               Clients = lists:usort(lists:flatten([Clients0, Clients1])),
-              store_clients(MetricName, Clients)
+              lists:map(fun(Client) ->
+                                store_clients(MetricName, Client)                                
+                        end, Clients)
+
       end, Maps),
     {ok, success}.
 
@@ -146,6 +149,7 @@ get_all_metric_clients() ->
                                                       {Mn, [Client | Clients]})
                                end
                        end, [], lists:flatten(List)),
+            
             MCList = lists:map(fun({Mn, Clients}) ->
                                        {Mn, lists:flatten(Clients)}
                                end, MCList0),
