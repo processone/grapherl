@@ -137,7 +137,7 @@ get_all_metric_clients() ->
         '$end_of_table' ->
             {ok, []};
         List ->
-            MCList = lists:foldl(
+            MCList0 = lists:foldl(
                        fun({Mn, Client}, Acc) ->
                                case lists:keyfind(Mn, 1, Acc) of
                                    false -> [{Mn, [Client]} | Acc];
@@ -146,6 +146,10 @@ get_all_metric_clients() ->
                                                       {Mn, [Client | Clients]})
                                end
                        end, [], lists:flatten(List)),
+            MCList = lists:map(fun({Mn, Clients}) ->
+                                       {Mn, lists:flatten(Clients)}
+                               end, MCList0),
+
             {ok, MCList}
     end.
 
