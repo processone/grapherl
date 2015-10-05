@@ -142,7 +142,7 @@ erlang app called `observer` which has been included in Grapherl.
 
 ### Handling large number of metrics
 In case you want to track a lot of metrics graph_db allows the user to bootstrap ram and disk db objects
-for metrics before any data starts coming in. Doing this will be helpful becasue creating ram and disk db objects is
+for metrics before any data starts coming in. Doing this will be helpful because creating ram and disk db objects is
 a time consuming task, so while receiving such huge traffic it is advisible that the user bootstrap some of the metrics
 so that the system doesn't fall under sudden load (though the app can handle sudden loads it just to assure constant cpu usage).
 In order to bootstrap metric user needs have a file in the following format:
