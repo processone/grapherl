@@ -38,6 +38,9 @@ you will get a reply within couple of minutes.
 
 
 # Upgrading Grapherl : appup
+
+NOTE: This feature is under construction **don't use it**.
+
 For users who wish to upgrade from older version of Grapherl to newer one without restarting the Erlang VM they
 can execute the following:
 

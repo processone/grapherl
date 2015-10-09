@@ -25,7 +25,7 @@ start(_StartType, _StartArgs) ->
                          {"/static/[...]", cowboy_static, {priv_dir, graph_web, "static"}}
                         ]}
                  ]),
-    {ok, _} = cowboy:start_http(http, 100, [{port, 9090}], [{env, [{dispatch, Dispatch}]}]),
+    {ok, _} = cowboy:start_http(http, 10, [{port, 9090}], [{env, [{dispatch, Dispatch}]}]),
 
     graph_web_sup:start_link().
 
