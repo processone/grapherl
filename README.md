@@ -2,6 +2,8 @@
 
 Real-time scalable monitoring server
 
+This project is *deprecated* and no longer developed.
+
 
 # Images
 ![Grapherl](https://github.com/processone/grapherl/blob/dev/grapherl/images/grapherl.png)
